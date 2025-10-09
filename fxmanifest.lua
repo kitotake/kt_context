@@ -5,11 +5,12 @@ author 'Kitotake'
 description 'Système de menu contextuel NUI avec React + TypeScript'
 version '1.0.0'
 
-ui_page 'web/build/index.html'
+ui_page 'nui/build/index.html'
 
 client_scripts {
     'client/main.lua',
-    'client/utils.lua'
+    'client/utils.lua',
+    'client/examples/*.lua'
 }
 
 server_scripts {
@@ -17,8 +18,8 @@ server_scripts {
 }
 
 files {
-    'web/build/index.html',
-    'web/build/**/*'
+    'nui/build/index.html',
+    'nui/build/**/*'
 }
 
 dependencies {

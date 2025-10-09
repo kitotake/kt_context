@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { ContextMenuState, MenuItem } from '../types/menu.types';
+import type { ContextMenuState, MenuItem } from '../types/menu.types';
 
 export const useContextMenu = () => {
   const [menuState, setMenuState] = useState<ContextMenuState>({

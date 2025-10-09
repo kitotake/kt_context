@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { MenuItem } from '../types/menu.types';
+import type { MenuItem } from '../types/menu.types';
 import { sendNUICallback } from '../utils/nui.utils';
 
 interface ContextMenuItemProps {

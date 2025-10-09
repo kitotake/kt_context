@@ -1,4 +1,4 @@
-import { MenuItem } from '../types/menu.types';
+import type { MenuItem } from '../types/menu.types';
 
 export const MENU_PRESETS = {
   player: (targetId: number, targetName: string): MenuItem[] => [

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { ContextMenuProps } from '../types/menu.types';
+import type { ContextMenuProps } from '../types/menu.types';
 import { ContextMenuItem } from './ContextMenuItem';
 import { sendNUICallback } from '../utils/nui.utils';
 import './ContextMenu.scss';
