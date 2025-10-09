@@ -42,7 +42,7 @@ $border-radius-sm: 0.25rem;
 }
 
 @mixin glass-effect {
-  background: rgba(17, 24, 39, 0.95);
+  background: rgba(17, 24, 39, 0.135);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }

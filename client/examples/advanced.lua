@@ -1,4 +1,3 @@
-
 function OpenPlayerInteractionMenu(targetId, targetName)
     local items = {
         {
@@ -277,12 +276,14 @@ function OpenInventoryMenu(items)
     
     for _, item in ipairs(items) do
         local category = item.category or "misc"
-        table.insert(categories[category].items, {
-            id = "use_" .. item.name,
-            label = item.label,
-            description = string.format("Quantité: %d", item.count),
-            icon = item.icon or "📦"
-        })
+        if categories[category] then
+            table.insert(categories[category].items, {
+                id = "use_" .. item.name,
+                label = item.label,
+                description = string.format("Quantité: %d", item.count),
+                icon = item.icon or "📦"
+            })
+        end
     end
     
     for catKey, category in pairs(categories) do
@@ -302,9 +303,9 @@ function OpenInventoryMenu(items)
         label = "Trier",
         icon = "🔄",
         submenu = {
-            { id = "sort_name", label = "Par nom" },
-            { id = "sort_quantity", label = "Par quantité" },
-            { id = "sort_recent", label = "Plus récent" }
+            { id = "sort_name", label = "Par nom", icon = "🔤" },
+            { id = "sort_quantity", label = "Par quantité", icon = "🔢" },
+            { id = "sort_recent", label = "Plus récent", icon = "🕐" }
         }
     })
     
@@ -317,7 +318,6 @@ function OpenInventoryMenu(items)
     
     OpenContextMenu(nil, nil, menuItems, "🎒 Inventaire")
 end
-
 
 function OpenPhoneMenu()
     local items = {
@@ -422,7 +422,7 @@ function OpenContextualMenu()
     local items = {}
     
     local vehicle, vehDist = GetClosestVehicle(coords)
-    if vehDist < 5.0 then
+    if vehicle ~= -1 and vehDist < 5.0 then
         table.insert(items, {
             id = "vehicle_menu",
             label = "Interagir avec le véhicule",
@@ -452,10 +452,10 @@ function OpenContextualMenu()
         }
     })
     
-    if #items == 0 then
-        table.insert(items, {
+    if #items == 1 then
+        table.insert(items, 1, {
             id = "no_action",
-            label = "Aucune action disponible",
+            label = "Aucune interaction proche",
             disabled = true,
             icon = "❌"
         })
@@ -464,12 +464,15 @@ function OpenContextualMenu()
     OpenContextMenu(nil, nil, items, "Menu Contextuel")
 end
 
-
-
 RegisterCommand("playermenu", function(source, args)
     local targetId = tonumber(args[1])
     if targetId then
-        OpenPlayerInteractionMenu(targetId, GetPlayerName(targetId))
+        local targetName = GetPlayerName(targetId)
+        if targetName then
+            OpenPlayerInteractionMenu(targetId, targetName)
+        else
+            ShowNotification("Joueur invalide", "error")
+        end
     else
         ShowNotification("Usage: /playermenu [ID]", "error")
     end
@@ -480,4 +483,4 @@ RegisterCommand("phone", OpenPhoneMenu, false)
 RegisterCommand("cmenu", OpenContextualMenu, false)
 
 -- Bind pour ouvrir le menu contextuel avec une touche
-RegisterKeyMapping("cmenu", "Ouvrir le menu contextuel", "keyboard", "F1")
+RegisterKeyMapping("cmenu", "Ouvrir le menu contextuel", "keyboard", "RMENU")

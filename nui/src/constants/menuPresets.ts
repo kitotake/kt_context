@@ -1,7 +1,7 @@
 import type { MenuItem } from '../types/menu.types';
 
 export const MENU_PRESETS = {
-  player: (targetId: number, targetName: string): MenuItem[] => [
+  player: (targetId: number, _targetName: string): MenuItem[] => [
     {
       id: 'view_id',
       label: 'Voir identité',
@@ -44,7 +44,7 @@ export const MENU_PRESETS = {
     },
   ],
 
-  admin: (targetId: number): MenuItem[] => [
+  admin: (_targetId: number): MenuItem[] => [
     {
       id: 'admin_tp',
       label: 'Téléporter',
