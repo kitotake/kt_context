@@ -17,9 +17,19 @@ server_scripts {
     'server/main.lua'
 }
 
+shared_scripts {
+    'config.lua'
+}
+
 files {
     'nui/build/index.html',
     'nui/build/**/*'
+}
+
+exports {
+    'OpenContextMenu',
+    'CloseContextMenu',
+    'IsMenuOpen'
 }
 
 dependencies {

@@ -38,21 +38,21 @@ end
 
 function GetClosestPlayer(coords)
     coords = coords or GetEntityCoords(PlayerPedId())
-    local players = GetActivePlayers()
     local closestDistance = -1
     local closestPlayer = -1
+    local players = GetActivePlayers()
     
-    for i = 1, #players, 1 do
-        local target = players[i]
-        
-        if target ~= PlayerId() then
-            local targetPed = GetPlayerPed(target)
-            local targetCoords = GetEntityCoords(targetPed)
-            local distance = #(targetCoords - coords)
-            
-            if closestDistance == -1 or closestDistance > distance then
-                closestPlayer = target
-                closestDistance = distance
+    for _, player in ipairs(players) do
+        if player ~= PlayerId() then
+            local targetPed = GetPlayerPed(player)
+            if DoesEntityExist(targetPed) then
+                local targetCoords = GetEntityCoords(targetPed)
+                local distance = #(targetCoords - coords)
+                
+                if closestDistance == -1 or distance < closestDistance then
+                    closestPlayer = player
+                    closestDistance = distance
+                end
             end
         end
     end
@@ -60,6 +60,7 @@ function GetClosestPlayer(coords)
     return closestPlayer, closestDistance
 end
 
+-- Fonction pour dessiner du texte 3D
 function Draw3DText(coords, text)
     local onScreen, _x, _y = World3dToScreen2d(coords.x, coords.y, coords.z)
     local px, py, pz = table.unpack(GetGameplayCamCoords())
