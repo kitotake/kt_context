@@ -1,0 +1,26 @@
+fx_version 'cerulean'
+game 'gta5'
+
+author 'Kitotake'
+description 'Système de menu contextuel NUI avec React + TypeScript'
+version '1.0.0'
+
+ui_page 'web/build/index.html'
+
+client_scripts {
+    'client/main.lua',
+    'client/utils.lua'
+}
+
+server_scripts {
+    'server/main.lua'
+}
+
+files {
+    'web/build/index.html',
+    'web/build/**/*'
+}
+
+dependencies {
+    -- Aucune dépendance requise
+}
