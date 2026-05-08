@@ -120,7 +120,7 @@ function RegisterDefaultKeybinds()
         DefaultKeys.inventoryMenu.key,
         DefaultKeys.inventoryMenu.control,
         function()
-            TriggerEvent("ox_inventory:openInventory")
+            TriggerEvent("kt_inventory:openInventory")
         end,
         DefaultKeys.inventoryMenu.description
     )

@@ -36,10 +36,10 @@ end
 
 local actionHandlers = {
     inventory = function() 
-        if GetResourceState('ox_inventory') == 'started' then
-            TriggerEvent("ox_inventory:openInventory")
+        if GetResourceState('kt_inventory') == 'started' then
+            TriggerEvent("kt_inventory:openInventory")
         else
-            print("[KT Context] ox_inventory n'est pas démarré")
+            print("[KT Context] kt_inventory n'est pas démarré")
         end
     end,
 
