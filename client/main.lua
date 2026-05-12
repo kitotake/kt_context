@@ -1,3 +1,7 @@
+-- =============================================
+-- MENU CONTEXTUEL PRINCIPAL
+-- =============================================
+
 local isMenuOpen = false
 
 function OpenContextMenu(x, y, items, title)
@@ -17,8 +21,8 @@ function OpenContextMenu(x, y, items, title)
     SendNUIMessage({
         type = "openContextMenu",
         data = {
-            x = x or 500,
-            y = y or 300,
+            x     = x or 500,
+            y     = y or 300,
             items = items,
             title = title or "Menu"
         }
@@ -30,12 +34,15 @@ function CloseContextMenu()
 
     isMenuOpen = false
     SetNuiFocus(false, false)
-
     SendNUIMessage({ type = "closeContextMenu" })
 end
 
+-- =============================================
+-- GESTIONNAIRES D'ACTIONS
+-- =============================================
+
 local actionHandlers = {
-    inventory = function() 
+    inventory = function()
         if GetResourceState('kt_inventory') == 'started' then
             TriggerEvent("kt_inventory:openInventory")
         else
@@ -70,38 +77,31 @@ local actionHandlers = {
         end
     end,
 
-    door_fl = function() ToggleVehicleDoor(0) end,
-    door_fr = function() ToggleVehicleDoor(1) end,
-    door_rl = function() ToggleVehicleDoor(2) end,
-    door_rr = function() ToggleVehicleDoor(3) end,
-    door_hood = function() ToggleVehicleDoor(4) end,
+    door_fl    = function() ToggleVehicleDoor(0) end,
+    door_fr    = function() ToggleVehicleDoor(1) end,
+    door_rl    = function() ToggleVehicleDoor(2) end,
+    door_rr    = function() ToggleVehicleDoor(3) end,
+    door_hood  = function() ToggleVehicleDoor(4) end,
     door_trunk = function() ToggleVehicleDoor(5) end,
 
     window_all_up = function()
         local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-        if vehicle ~= 0 then 
-            for i = 0, 3 do RollUpWindow(vehicle, i) end 
+        if vehicle ~= 0 then
+            for i = 0, 3 do RollUpWindow(vehicle, i) end
         end
     end,
 
     window_all_down = function()
         local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-        if vehicle ~= 0 then 
-            for i = 0, 3 do RollDownWindow(vehicle, i) end 
+        if vehicle ~= 0 then
+            for i = 0, 3 do RollDownWindow(vehicle, i) end
         end
     end
 }
 
-function ToggleVehicleDoor(doorIndex)
-    local vehicle = GetVehiclePedIsIn(PlayerPedId(), true)
-    if vehicle ~= 0 then
-        if GetVehicleDoorAngleRatio(vehicle, doorIndex) > 0 then
-            SetVehicleDoorShut(vehicle, doorIndex, false)
-        else
-            SetVehicleDoorOpen(vehicle, doorIndex, false, false)
-        end
-    end
-end
+-- =============================================
+-- CALLBACKS NUI
+-- =============================================
 
 RegisterNUICallback("menuAction", function(data, cb)
     local handler = actionHandlers[data.id]
@@ -118,23 +118,48 @@ RegisterNUICallback("menuClosed", function(_, cb)
     cb("ok")
 end)
 
+-- =============================================
+-- COMMANDE DE TEST
+-- =============================================
+
 RegisterCommand("menu", function()
     local items = {
-        { id = "inventory", label = "Inventaire", description = "Voir mes objets", icon = "🎒" },
-        { id = "actions", label = "Actions", icon = "⚡", submenu = {
-            { id = "wave", label = "Saluer", icon = "👋" },
-            { id = "dance", label = "Danser", icon = "💃" }
-        }},
-        { id = "vehicle", label = "Véhicule", icon = "🚗", disabled = not IsPedInAnyVehicle(PlayerPedId(), false), submenu = {
-            { id = "lock_vehicle", label = "Verrouiller", icon = "🔒" },
-            { id = "engine_toggle", label = "Moteur On/Off", icon = "🔌" }
-        }}
+        {
+            id = "inventory",
+            label = "Inventaire",
+            description = "Voir mes objets",
+            icon = "🎒"
+        },
+        {
+            id = "actions",
+            label = "Actions",
+            icon = "⚡",
+            submenu = {
+                { id = "wave",  label = "Saluer", icon = "👋" },
+                { id = "dance", label = "Danser", icon = "💃" }
+            }
+        },
+        {
+            id = "vehicle",
+            label = "Véhicule",
+            icon = "🚗",
+            disabled = not IsPedInAnyVehicle(PlayerPedId(), false),
+            submenu = {
+                { id = "lock_vehicle",  label = "Verrouiller",  icon = "🔒" },
+                { id = "engine_toggle", label = "Moteur On/Off", icon = "🔌" }
+            }
+        }
     }
     OpenContextMenu(nil, nil, items, "Menu Principal")
 end)
 
+-- =============================================
+-- ZONES DE MENU (nil-safe)
+-- =============================================
+
 Citizen.CreateThread(function()
-    local menuZones = Config.MenuZones or {}
+    -- FIX: vérification nil-safe sur MenuZones
+    local menuZones = (Config and Config.MenuZones) or {}
 
     if #menuZones == 0 then return end
 
@@ -147,7 +172,7 @@ Citizen.CreateThread(function()
             local distance = #(coords - zone.coords)
             if distance < (zone.distance or 2.0) then
                 waitTime = 0
-                
+
                 if zone.marker then
                     DrawMarker(
                         zone.marker.type or 2,
@@ -163,13 +188,13 @@ Citizen.CreateThread(function()
                         false, true, 2, false, nil, nil, false
                     )
                 end
-                
+
                 if distance < 1.5 then
                     BeginTextCommandDisplayHelp("STRING")
                     AddTextComponentSubstringPlayerName("Appuyez sur ~INPUT_CONTEXT~ pour ouvrir le menu")
                     EndTextCommandDisplayHelp(0, false, true, -1)
-                    
-                    if IsControlJustReleased(0, 38) then 
+
+                    if IsControlJustReleased(0, 38) then
                         OpenContextMenu(nil, nil, zone.items, zone.title)
                     end
                 end
@@ -180,20 +205,27 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- =============================================
+-- DÉSACTIVER LES CONTRÔLES QUAND MENU OUVERT
+-- =============================================
+
 Citizen.CreateThread(function()
     while true do
         Wait(isMenuOpen and 0 or 500)
         if isMenuOpen then
-          
-            DisableControlAction(0, 1, true)    
-            DisableControlAction(0, 2, true)    
-            DisableControlAction(0, 142, true) 
-            DisableControlAction(0, 18, true)  
-            DisableControlAction(0, 322, true) 
-            DisableControlAction(0, 106, true) 
+            DisableControlAction(0, 1,   true)
+            DisableControlAction(0, 2,   true)
+            DisableControlAction(0, 142, true)
+            DisableControlAction(0, 18,  true)
+            DisableControlAction(0, 322, true)
+            DisableControlAction(0, 106, true)
         end
     end
 end)
+
+-- =============================================
+-- EXPORTS
+-- =============================================
 
 exports("OpenContextMenu", OpenContextMenu)
 exports("CloseContextMenu", CloseContextMenu)

@@ -1,8 +1,6 @@
-
 Config = {}
 
 Config.Locale = 'fr'
-
 
 Config.DefaultPosition = {
     x = 500,
@@ -25,22 +23,8 @@ Config.Animations = {
     }
 }
 
-Config.MenuZones = {
-    {
-        name = "armurerie",
-        coords = vector3(0.0, 0.0, 0.0),
-        distance = 2.0,
-        marker = {
-            type = 2,
-            size = {x = 0.3, y = 0.3, z = 0.3},
-            color = {r = 255, g = 255, b = 255, a = 200}
-        },
-        title = "Armurerie",
-        items = {
-           
-        }
-    }
-}
+-- FIX: Zones vides par défaut pour éviter nil crash
+Config.MenuZones = {}
 
 Config.Locales = {
     fr = {

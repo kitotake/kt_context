@@ -5,16 +5,20 @@ author 'Kitotake'
 description 'Système de menu contextuel NUI avec React + TypeScript'
 version '1.0.0'
 
-ui_page 'nui/build/index.html'
+ui_page 'web/build/index.html'
 
 client_scripts {
+    'client/utils.lua',        -- Utils doit être chargé EN PREMIER
     'client/main.lua',
-    'client/utils.lua',
+    'client/alts_client/keybinds.lua',
+    'client/alts_client/quick_actions.lua',
+    'client/alts_client/radial_menu.lua',
     'client/examples/*.lua'
 }
 
 server_scripts {
-    'server/main.lua'
+    'server/main.lua',
+    'server/alts_server/action_logs.lua'
 }
 
 shared_scripts {
@@ -22,8 +26,8 @@ shared_scripts {
 }
 
 files {
-    'nui/build/index.html',
-    'nui/build/**/*'
+    'web/build/index.html',
+    'web/build/**/*'
 }
 
 exports {

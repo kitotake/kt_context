@@ -1,15 +1,19 @@
+-- =============================================
+-- UTILS - Doit être chargé EN PREMIER
+-- =============================================
+
 function ShowNotification(message, type)
     type = type or "info"
-    
+
     local colors = {
         success = {10, 185, 129},
-        error = {239, 68, 68},
+        error   = {239, 68, 68},
         warning = {245, 158, 11},
-        info = {59, 130, 246}
+        info    = {59, 130, 246}
     }
-    
+
     local color = colors[type] or colors.info
-    
+
     SetNotificationTextEntry("STRING")
     AddTextComponentString(message)
     SetNotificationMessage("CHAR_DEFAULT", "CHAR_DEFAULT", true, 1, "Notification", "")
@@ -22,17 +26,17 @@ function GetClosestVehicle(coords)
     local vehicles = GetGamePool('CVehicle')
     local closestDistance = -1
     local closestVehicle = -1
-    
-    for i = 1, #vehicles, 1 do
+
+    for i = 1, #vehicles do
         local vehicleCoords = GetEntityCoords(vehicles[i])
         local distance = #(vehicleCoords - coords)
-        
+
         if closestDistance == -1 or closestDistance > distance then
             closestVehicle = vehicles[i]
             closestDistance = distance
         end
     end
-    
+
     return closestVehicle, closestDistance
 end
 
@@ -41,14 +45,14 @@ function GetClosestPlayer(coords)
     local closestDistance = -1
     local closestPlayer = -1
     local players = GetActivePlayers()
-    
+
     for _, player in ipairs(players) do
         if player ~= PlayerId() then
             local targetPed = GetPlayerPed(player)
             if DoesEntityExist(targetPed) then
                 local targetCoords = GetEntityCoords(targetPed)
                 local distance = #(targetCoords - coords)
-                
+
                 if closestDistance == -1 or distance < closestDistance then
                     closestPlayer = player
                     closestDistance = distance
@@ -56,20 +60,19 @@ function GetClosestPlayer(coords)
             end
         end
     end
-    
+
     return closestPlayer, closestDistance
 end
 
--- Fonction pour dessiner du texte 3D
 function Draw3DText(coords, text)
     local onScreen, _x, _y = World3dToScreen2d(coords.x, coords.y, coords.z)
     local px, py, pz = table.unpack(GetGameplayCamCoords())
     local dist = #(vector3(px, py, pz) - coords)
-    
+
     local scale = (1 / dist) * 2
     local fov = (1 / GetGameplayCamFov()) * 100
     scale = scale * fov
-    
+
     if onScreen then
         SetTextScale(0.0 * scale, 0.55 * scale)
         SetTextFont(4)
@@ -83,5 +86,16 @@ function Draw3DText(coords, text)
         SetTextCentre(1)
         AddTextComponentString(text)
         DrawText(_x, _y)
+    end
+end
+
+function ToggleVehicleDoor(doorIndex)
+    local vehicle = GetVehiclePedIsIn(PlayerPedId(), true)
+    if vehicle ~= 0 then
+        if GetVehicleDoorAngleRatio(vehicle, doorIndex) > 0 then
+            SetVehicleDoorShut(vehicle, doorIndex, false)
+        else
+            SetVehicleDoorOpen(vehicle, doorIndex, false, false)
+        end
     end
 end

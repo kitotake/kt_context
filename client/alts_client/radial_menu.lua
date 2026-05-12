@@ -1,8 +1,15 @@
+-- =============================================
+-- MENU RADIAL
+-- FIX: La table RadialMenus était coupée par une virgule parasite
+--      après _G.RadialMenu = RadialMenu
+-- =============================================
+
 local RadialMenu = {
     isOpen = false,
     currentMenu = nil
 }
 
+-- FIX: RadialMenus défini AVANT d'être utilisé dans les fonctions
 local RadialMenus = {
     main = {
         title = "Menu Principal",
@@ -35,7 +42,11 @@ local RadialMenus = {
                 id = "phone",
                 label = "Téléphone",
                 icon = "📱",
-                action = function() OpenPhoneMenu() end
+                action = function()
+                    if OpenPhoneMenu then
+                        OpenPhoneMenu()
+                    end
+                end
             },
             {
                 id = "admin",
@@ -48,196 +59,7 @@ local RadialMenus = {
             }
         }
     },
-    
-    items = {
-        title = "Objets Rapides",
-        parent = "main",
-        items = {
-            {
-                id = "water",
-                label = "Boire de l'eau",
-                icon = "💧",
-                action = function()
-                    ShowNotification("Vous buvez de l'eau", "info")
-                end
-            },
-            {
-                id = "eat",
-                label = "Manger",
-                icon = "🍔",
-                action = function()
-                    ShowNotification("Vous mangez", "info")
-                end
-            },
-            {
-                id = "medkit",
-                label = "Kit médical",
-                icon = "🏥",
-                action = function()
-                    ShowNotification("Vous utilisez un kit médical", "success")
-                end
-            }
-        }
-    },
-    
-    admin = {
-        title = "Admin",
-        parent = "main",
-        items = {
-            {
-                id = "heal",
-                label = "Se soigner",
-                icon = "❤️",
-                action = function() QuickActions.Admin.Heal() end
-            },
-            {
-                id = "armor",
-                label = "Armure",
-                icon = "🛡️",
-                action = function() QuickActions.Admin.GiveArmor() end
-            },
-            {
-                id = "fix",
-                label = "Réparer Véhicule",
-                icon = "🔧",
-                action = function() QuickActions.Admin.RepairVehicle() end
-            },
-            {
-                id = "dv",
-                label = "Supprimer Véhicule",
-                icon = "🗑️",
-                action = function() QuickActions.Admin.DeleteVehicle() end
-            },
-            {
-                id = "tpw",
-                label = "TP Waypoint",
-                icon = "📍",
-                action = function() QuickActions.Admin.TeleportToWaypoint() end
-            },
-            {
-                id = "noclip",
-                label = "NoClip",
-                icon = "👻",
-                action = function()
-                    TriggerEvent("kt_admin:toggleNoclip")
-                end
-            }
-        }
-    }
-}
 
-function RadialMenu:Open(menuId)
-    menuId = menuId or "main"
-    local menu = RadialMenus[menuId]
-    
-    if not menu then
-        print("[KT Context] Menu radial introuvable: " .. menuId)
-        return
-    end
-    
-    local filteredItems = {}
-    for _, item in ipairs(menu.items) do
-        if not item.condition or item.condition() then
-            table.insert(filteredItems, item)
-        end
-    end
-    
-    self.isOpen = true
-    self.currentMenu = menuId
-    
-    SetNuiFocus(true, true)
-    SendNUIMessage({
-        type = "openRadialMenu",
-        data = {
-            title = menu.title,
-            items = filteredItems,
-            parent = menu.parent
-        }
-    })
-end
-
-function RadialMenu:Close()
-    if not self.isOpen then return end
-    
-    self.isOpen = false
-    self.currentMenu = nil
-    
-    SetNuiFocus(false, false)
-    SendNUIMessage({ type = "closeRadialMenu" })
-end
-
-function RadialMenu:OpenSubmenu(submenuId)
-    self:Close()
-    Wait(100)
-    self:Open(submenuId)
-end
-
-function RadialMenu:GoBack()
-    local currentMenu = RadialMenus[self.currentMenu]
-    
-    if currentMenu and currentMenu.parent then
-        self:Close()
-        Wait(100)
-        self:Open(currentMenu.parent)
-    else
-        self:Close()
-    end
-end
-
-RegisterNUICallback("radialMenuAction", function(data, cb)
-    local action = data.action
-    local menuId = data.menuId
-    
-    if action == "back" then
-        RadialMenu:GoBack()
-    elseif action == "close" then
-        RadialMenu:Close()
-    elseif action == "submenu" then
-        RadialMenu:OpenSubmenu(data.submenuId)
-    elseif action == "item" then
-        local menu = RadialMenus[menuId]
-        if menu then
-            for _, item in ipairs(menu.items) do
-                if item.id == data.itemId then
-                    if item.submenu then
-                        RadialMenu:OpenSubmenu(item.submenu)
-                    elseif item.action then
-                        item.action()
-                        RadialMenu:Close()
-                    end
-                    break
-                end
-            end
-        end
-    end
-    
-    cb("ok")
-end)
-
-RegisterCommand("+radialmenu", function()
-    if not RadialMenu.isOpen then
-        RadialMenu:Open("main")
-    end
-end, false)
-
-RegisterCommand("-radialmenu", function()
-    if RadialMenu.isOpen then
-        RadialMenu:Close()
-    end
-end, false)
-
-RegisterKeyMapping("+radialmenu", "Ouvrir le menu radial", "keyboard", "Z")
-
-exports("OpenRadialMenu", function(menuId)
-    RadialMenu:Open(menuId)
-end)
-
-exports("CloseRadialMenu", function()
-    RadialMenu:Close()
-end)
-
-_G.RadialMenu = RadialMenu,
-    
     vehicle = {
         title = "Véhicule",
         parent = "main",
@@ -246,7 +68,11 @@ _G.RadialMenu = RadialMenu,
                 id = "lock",
                 label = "Verrouiller",
                 icon = "🔒",
-                action = function() QuickActions.Vehicle.ToggleLock() end
+                action = function()
+                    if QuickActions and QuickActions.Vehicle then
+                        QuickActions.Vehicle.ToggleLock()
+                    end
+                end
             },
             {
                 id = "engine",
@@ -303,7 +129,7 @@ _G.RadialMenu = RadialMenu,
             }
         }
     },
-    
+
     vehicle_doors = {
         title = "Portes",
         parent = "vehicle",
@@ -336,11 +162,15 @@ _G.RadialMenu = RadialMenu,
                 id = "close_all",
                 label = "Tout Fermer",
                 icon = "🔒",
-                action = function() QuickActions.Vehicle.CloseAllDoors() end
+                action = function()
+                    if QuickActions and QuickActions.Vehicle then
+                        QuickActions.Vehicle.CloseAllDoors()
+                    end
+                end
             }
         }
     },
-    
+
     vehicle_windows = {
         title = "Vitres",
         parent = "vehicle",
@@ -349,17 +179,25 @@ _G.RadialMenu = RadialMenu,
                 id = "up_all",
                 label = "Toutes Monter",
                 icon = "⬆️",
-                action = function() QuickActions.Vehicle.CloseAllWindows() end
+                action = function()
+                    if QuickActions and QuickActions.Vehicle then
+                        QuickActions.Vehicle.CloseAllWindows()
+                    end
+                end
             },
             {
                 id = "down_all",
                 label = "Toutes Descendre",
                 icon = "⬇️",
-                action = function() QuickActions.Vehicle.OpenAllWindows() end
+                action = function()
+                    if QuickActions and QuickActions.Vehicle then
+                        QuickActions.Vehicle.OpenAllWindows()
+                    end
+                end
             }
         }
     },
-    
+
     player = {
         title = "Actions Joueur",
         parent = "main",
@@ -368,35 +206,55 @@ _G.RadialMenu = RadialMenu,
                 id = "handsup",
                 label = "Mains en l'air",
                 icon = "🙌",
-                action = function() QuickActions.Player.HandsUp() end
+                action = function()
+                    if QuickActions and QuickActions.Player then
+                        QuickActions.Player.HandsUp()
+                    end
+                end
             },
             {
                 id = "sit",
                 label = "S'asseoir",
                 icon = "🪑",
-                action = function() QuickActions.Player.SitGround() end
+                action = function()
+                    if QuickActions and QuickActions.Player then
+                        QuickActions.Player.SitGround()
+                    end
+                end
             },
             {
                 id = "lay",
                 label = "S'allonger",
                 icon = "😴",
-                action = function() QuickActions.Player.LayDown() end
+                action = function()
+                    if QuickActions and QuickActions.Player then
+                        QuickActions.Player.LayDown()
+                    end
+                end
             },
             {
                 id = "crouch",
                 label = "S'accroupir",
                 icon = "🧍",
-                action = function() QuickActions.Player.Crouch() end
+                action = function()
+                    if QuickActions and QuickActions.Player then
+                        QuickActions.Player.Crouch()
+                    end
+                end
             },
             {
                 id = "stopanim",
                 label = "Arrêter Animation",
                 icon = "⏹️",
-                action = function() QuickActions.Player.StopAnim() end
+                action = function()
+                    if QuickActions and QuickActions.Player then
+                        QuickActions.Player.StopAnim()
+                    end
+                end
             }
         }
     },
-    
+
     emotes = {
         title = "Émotes",
         parent = "main",
@@ -454,3 +312,230 @@ _G.RadialMenu = RadialMenu,
                 end
             }
         }
+    },
+
+    items = {
+        title = "Objets Rapides",
+        parent = "main",
+        items = {
+            {
+                id = "water",
+                label = "Boire de l'eau",
+                icon = "💧",
+                action = function()
+                    ShowNotification("Vous buvez de l'eau", "info")
+                end
+            },
+            {
+                id = "eat",
+                label = "Manger",
+                icon = "🍔",
+                action = function()
+                    ShowNotification("Vous mangez", "info")
+                end
+            },
+            {
+                id = "medkit",
+                label = "Kit médical",
+                icon = "🏥",
+                action = function()
+                    ShowNotification("Vous utilisez un kit médical", "success")
+                end
+            }
+        }
+    },
+
+    admin = {
+        title = "Admin",
+        parent = "main",
+        items = {
+            {
+                id = "heal",
+                label = "Se soigner",
+                icon = "❤️",
+                action = function()
+                    if QuickActions and QuickActions.Admin then
+                        QuickActions.Admin.Heal()
+                    end
+                end
+            },
+            {
+                id = "armor",
+                label = "Armure",
+                icon = "🛡️",
+                action = function()
+                    if QuickActions and QuickActions.Admin then
+                        QuickActions.Admin.GiveArmor()
+                    end
+                end
+            },
+            {
+                id = "fix",
+                label = "Réparer Véhicule",
+                icon = "🔧",
+                action = function()
+                    if QuickActions and QuickActions.Admin then
+                        QuickActions.Admin.RepairVehicle()
+                    end
+                end
+            },
+            {
+                id = "dv",
+                label = "Supprimer Véhicule",
+                icon = "🗑️",
+                action = function()
+                    if QuickActions and QuickActions.Admin then
+                        QuickActions.Admin.DeleteVehicle()
+                    end
+                end
+            },
+            {
+                id = "tpw",
+                label = "TP Waypoint",
+                icon = "📍",
+                action = function()
+                    if QuickActions and QuickActions.Admin then
+                        QuickActions.Admin.TeleportToWaypoint()
+                    end
+                end
+            },
+            {
+                id = "noclip",
+                label = "NoClip",
+                icon = "👻",
+                action = function()
+                    TriggerEvent("kt_admin:toggleNoclip")
+                end
+            }
+        }
+    }
+}
+
+-- =============================================
+-- FONCTIONS DU MENU RADIAL
+-- =============================================
+
+function RadialMenu:Open(menuId)
+    menuId = menuId or "main"
+    local menu = RadialMenus[menuId]
+
+    if not menu then
+        print("[KT Context] Menu radial introuvable: " .. menuId)
+        return
+    end
+
+    local filteredItems = {}
+    for _, item in ipairs(menu.items) do
+        if not item.condition or item.condition() then
+            table.insert(filteredItems, item)
+        end
+    end
+
+    self.isOpen = true
+    self.currentMenu = menuId
+
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        type = "openRadialMenu",
+        data = {
+            title  = menu.title,
+            items  = filteredItems,
+            parent = menu.parent
+        }
+    })
+end
+
+function RadialMenu:Close()
+    if not self.isOpen then return end
+
+    self.isOpen = false
+    self.currentMenu = nil
+
+    SetNuiFocus(false, false)
+    SendNUIMessage({ type = "closeRadialMenu" })
+end
+
+function RadialMenu:OpenSubmenu(submenuId)
+    self:Close()
+    Wait(100)
+    self:Open(submenuId)
+end
+
+function RadialMenu:GoBack()
+    local currentMenu = RadialMenus[self.currentMenu]
+
+    if currentMenu and currentMenu.parent then
+        self:Close()
+        Wait(100)
+        self:Open(currentMenu.parent)
+    else
+        self:Close()
+    end
+end
+
+-- =============================================
+-- CALLBACKS NUI
+-- =============================================
+
+RegisterNUICallback("radialMenuAction", function(data, cb)
+    local action = data.action
+    local menuId = data.menuId
+
+    if action == "back" then
+        RadialMenu:GoBack()
+    elseif action == "close" then
+        RadialMenu:Close()
+    elseif action == "submenu" then
+        RadialMenu:OpenSubmenu(data.submenuId)
+    elseif action == "item" then
+        local menu = RadialMenus[menuId]
+        if menu then
+            for _, item in ipairs(menu.items) do
+                if item.id == data.itemId then
+                    if item.submenu then
+                        RadialMenu:OpenSubmenu(item.submenu)
+                    elseif item.action then
+                        item.action()
+                        RadialMenu:Close()
+                    end
+                    break
+                end
+            end
+        end
+    end
+
+    cb("ok")
+end)
+
+-- =============================================
+-- COMMANDES ET KEYBINDS
+-- =============================================
+
+RegisterCommand("+radialmenu", function()
+    if not RadialMenu.isOpen then
+        RadialMenu:Open("main")
+    end
+end, false)
+
+RegisterCommand("-radialmenu", function()
+    if RadialMenu.isOpen then
+        RadialMenu:Close()
+    end
+end, false)
+
+RegisterKeyMapping("+radialmenu", "Ouvrir le menu radial", "keyboard", "Z")
+
+-- =============================================
+-- EXPORTS ET GLOBAL
+-- =============================================
+
+exports("OpenRadialMenu", function(menuId)
+    RadialMenu:Open(menuId)
+end)
+
+exports("CloseRadialMenu", function()
+    RadialMenu:Close()
+end)
+
+-- FIX: Pas de virgule après RadialMenu
+_G.RadialMenu = RadialMenu
