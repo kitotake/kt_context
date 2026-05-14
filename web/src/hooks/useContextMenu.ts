@@ -1,51 +1,52 @@
+import { useState, useCallback } from 'react'
+import type { ContextMenuState, MenuItem } from '../types/menu.types'
+import { useNuiEvent } from './useNuiEvent'
 
-import { useState, useEffect } from 'react';
-import type { ContextMenuState, MenuItem } from '../types/menu.types';
+const INITIAL: ContextMenuState = {
+  visible: false,
+  position: { x: 0, y: 0 },
+  items: [],
+  title: undefined,
+  theme: 'dark',
+  animate: true,
+}
 
-export const useContextMenu = () => {
-  const [menuState, setMenuState] = useState<ContextMenuState>({
-    visible: false,
-    position: { x: 0, y: 0 },
-    items: [],
-  });
+export function useContextMenu() {
+  const [state, setState] = useState<ContextMenuState>(INITIAL)
 
-  const openMenu = (
-    x: number,
-    y: number,
-    items: MenuItem[],
-    title?: string
-  ) => {
-    setMenuState({
+  /** Ouvrir depuis JS (mode navigateur / test) */
+  const openMenu = useCallback(
+    (x: number, y: number, items: MenuItem[], title?: string) => {
+      setState({ visible: true, position: { x, y }, items, title, theme: 'dark', animate: true })
+    },
+    []
+  )
+
+  /** Fermer */
+  const closeMenu = useCallback(() => {
+    setState(prev => ({ ...prev, visible: false }))
+  }, [])
+
+  /** Écouter les messages NUI depuis Lua */
+  useNuiEvent<{
+    x: number; y: number; items: MenuItem[]; title?: string
+    theme?: 'dark' | 'light'; animate?: boolean
+  }>('openContextMenu', data => {
+    setState({
       visible: true,
-      position: { x, y },
-      items,
-      title,
-    });
-  };
+      position: { x: data.x, y: data.y },
+      items: data.items,
+      title: data.title,
+      theme: data.theme ?? 'dark',
+      animate: data.animate ?? true,
+    })
+    // Rendre le body visible (FiveM le masque par défaut)
+    document.body.style.visibility = 'visible'
+  })
 
-  const closeMenu = () => {
-    setMenuState((prev) => ({ ...prev, visible: false }));
-  };
+  useNuiEvent('closeContextMenu', () => {
+    closeMenu()
+  })
 
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      const { type, data } = event.data;
-
-      switch (type) {
-        case 'openContextMenu':
-          openMenu(data.x, data.y, data.items, data.title);
-          break;
-        case 'closeContextMenu':
-          closeMenu();
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  return { menuState, openMenu, closeMenu };
-};
+  return { state, openMenu, closeMenu }
+}

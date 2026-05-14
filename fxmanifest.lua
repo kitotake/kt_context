@@ -2,14 +2,17 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'Kitotake'
-description 'Système de menu contextuel NUI avec React + TypeScript'
-version '1.0.0'
+description 'Système de menu contextuel NUI – React + TypeScript + SCSS (v2.0)'
+version '2.0.0'
 
 ui_page 'web/build/index.html'
 
 client_scripts {
-    'client/utils.lua',        -- Utils doit être chargé EN PREMIER
+    'config.lua',
+    'client/utils.lua',
     'client/main.lua',
+    'client/cursor.lua',
+    'client/zones.lua',
     'client/alts_client/keybinds.lua',
     'client/alts_client/quick_actions.lua',
     'client/alts_client/radial_menu.lua',
@@ -33,9 +36,8 @@ files {
 exports {
     'OpenContextMenu',
     'CloseContextMenu',
-    'IsMenuOpen'
+    'IsMenuOpen',
+    'RegisterMenuZone'
 }
 
-dependencies {
-    -- Aucune dépendance requise
-}
+dependencies {}

@@ -4,7 +4,8 @@
 
 local isMenuOpen = false
 
-function OpenContextMenu(x, y, items, title)
+-- ─── Ouverture ──────────────────────────────────────────────────────────────
+function OpenContextMenu(x, y, items, title, options)
     if isMenuOpen then
         print("[KT Context] Menu déjà ouvert")
         return
@@ -15,41 +16,49 @@ function OpenContextMenu(x, y, items, title)
         return
     end
 
+    options = options or {}
     isMenuOpen = true
     SetNuiFocus(true, true)
 
     SendNUIMessage({
         type = "openContextMenu",
         data = {
-            x     = x or 500,
-            y     = y or 300,
-            items = items,
-            title = title or "Menu"
+            x       = x       or 500,
+            y       = y       or 300,
+            items   = items,
+            title   = title   or "Menu",
+            theme   = options.theme   or "dark",
+            animate = options.animate ~= false,
         }
     })
+
+    TriggerServerEvent("kt_context:logMenuOpen", title or "unknown")
 end
 
+-- ─── Fermeture ──────────────────────────────────────────────────────────────
 function CloseContextMenu()
     if not isMenuOpen then return end
-
     isMenuOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ type = "closeContextMenu" })
 end
 
--- =============================================
--- GESTIONNAIRES D'ACTIONS
--- =============================================
+-- ─── Statut ─────────────────────────────────────────────────────────────────
+function IsMenuOpen()
+    return isMenuOpen
+end
 
+-- ─── Gestionnaires d'actions ─────────────────────────────────────────────────
 local actionHandlers = {
+
+    -- Inventaire
     inventory = function()
         if GetResourceState('kt_inventory') == 'started' then
             TriggerEvent("kt_inventory:openInventory")
-        else
-            print("[KT Context] kt_inventory n'est pas démarré")
         end
     end,
 
+    -- Animations joueur
     wave = function()
         local ped = PlayerPedId()
         RequestAnimDict("gestures@m@standing@casual")
@@ -57,23 +66,39 @@ local actionHandlers = {
         TaskPlayAnim(ped, "gestures@m@standing@casual", "gesture_hello", 8.0, -8.0, -1, 0, 0, false, false, false)
     end,
 
-    dance = function()
-        TaskStartScenarioInPlace(PlayerPedId(), "WORLD_HUMAN_PARTYING", 0, true)
+    handsup = function()
+        local ped = PlayerPedId()
+        RequestAnimDict("random@mugging3")
+        while not HasAnimDictLoaded("random@mugging3") do Wait(10) end
+        TaskPlayAnim(ped, "random@mugging3", "handsup_standing_base", 8.0, -8.0, -1, 50, 0, false, false, false)
     end,
 
-    lock_vehicle = function()
-        local vehicle = GetVehiclePedIsIn(PlayerPedId(), true)
-        if vehicle ~= 0 then
-            local locked = GetVehicleDoorLockStatus(vehicle)
-            SetVehicleDoorsLocked(vehicle, locked == 1 and 2 or 1)
-            ShowNotification(locked == 1 and "Véhicule verrouillé" or "Véhicule déverrouillé", locked == 1 and "success" or "info")
+    sit = function()
+        TaskStartScenarioInPlace(PlayerPedId(), "WORLD_HUMAN_PICNIC", 0, true)
+    end,
+
+    lay = function()
+        TaskStartScenarioInPlace(PlayerPedId(), "WORLD_HUMAN_SUNBATHE_BACK", 0, true)
+    end,
+
+    stopanim = function()
+        ClearPedTasks(PlayerPedId())
+    end,
+
+    -- Véhicule
+    veh_lock = function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), true)
+        if veh ~= 0 then
+            local locked = GetVehicleDoorLockStatus(veh)
+            SetVehicleDoorsLocked(veh, locked == 1 and 2 or 1)
+            ShowNotification(locked == 1 and L('vehicle_locked') or L('vehicle_unlocked'), locked == 1 and "success" or "info")
         end
     end,
 
-    engine_toggle = function()
-        local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-        if vehicle ~= 0 then
-            SetVehicleEngineOn(vehicle, not GetIsVehicleEngineRunning(vehicle), false, true)
+    veh_engine = function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+        if veh ~= 0 then
+            SetVehicleEngineOn(veh, not GetIsVehicleEngineRunning(veh), false, true)
         end
     end,
 
@@ -84,31 +109,118 @@ local actionHandlers = {
     door_hood  = function() ToggleVehicleDoor(4) end,
     door_trunk = function() ToggleVehicleDoor(5) end,
 
-    window_all_up = function()
-        local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-        if vehicle ~= 0 then
-            for i = 0, 3 do RollUpWindow(vehicle, i) end
+    win_up = function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+        if veh ~= 0 then for i = 0, 3 do RollUpWindow(veh, i) end end
+    end,
+
+    win_down = function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+        if veh ~= 0 then for i = 0, 3 do RollDownWindow(veh, i) end end
+    end,
+
+    -- Admin general
+    adm_coords_self = function()
+        local coords = GetEntityCoords(PlayerPedId())
+        ShowNotification(string.format("📍 X:%.2f Y:%.2f Z:%.2f", coords.x, coords.y, coords.z), "info")
+    end,
+
+    adm_tp_waypoint = function()
+        if IsPlayerAceAllowed(PlayerId(), "admin") then
+            local waypoint = GetFirstBlipInfoId(8)
+            if DoesBlipExist(waypoint) then
+                local coords = GetBlipInfoIdCoord(waypoint)
+                local ped    = PlayerPedId()
+                local veh    = GetVehiclePedIsIn(ped, false)
+                local found, gz = GetGroundZFor_3dCoord(coords.x, coords.y, 1000.0, false)
+                local z = found and gz or coords.z
+                if veh ~= 0 then
+                    SetEntityCoords(veh, coords.x, coords.y, z + 1.0)
+                else
+                    SetEntityCoords(ped, coords.x, coords.y, z + 1.0)
+                end
+                ShowNotification("📍 Téléporté au waypoint", "success")
+            else
+                ShowNotification("Aucun waypoint placé", "warning")
+            end
         end
     end,
 
-    window_all_down = function()
-        local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-        if vehicle ~= 0 then
-            for i = 0, 3 do RollDownWindow(vehicle, i) end
+    adm_god = function()
+        if IsPlayerAceAllowed(PlayerId(), "admin") then
+            local ped = PlayerPedId()
+            local inv = GetPlayerInvincible(PlayerId())
+            SetEntityInvincible(ped, not inv)
+            ShowNotification(inv and "God Mode désactivé" or "God Mode activé", "info")
         end
-    end
+    end,
+
+    adm_invisible = function()
+        if IsPlayerAceAllowed(PlayerId(), "admin") then
+            local ped = PlayerPedId()
+            local vis = IsEntityVisible(ped)
+            SetEntityVisible(ped, not vis, false)
+            ShowNotification(vis and "Invisible activé" or "Visible", "info")
+        end
+    end,
+
+    adm_heal_self = function()
+        if IsPlayerAceAllowed(PlayerId(), "admin") then
+            local ped = PlayerPedId()
+            SetEntityHealth(ped, GetEntityMaxHealth(ped))
+            ShowNotification("❤️ Santé restaurée", "success")
+        end
+    end,
+
+    adm_armor_self = function()
+        if IsPlayerAceAllowed(PlayerId(), "admin") then
+            SetPedArmour(PlayerPedId(), 100)
+            ShowNotification("🛡️ Armure restaurée", "success")
+        end
+    end,
+
+    adm_delete = function()
+        ShowNotification("Action admin: supprimer entité", "warning")
+        -- Implémentation spécifique selon le contexte
+    end,
+
+    adm_repair = function()
+        if IsPlayerAceAllowed(PlayerId(), "admin") then
+            local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+            if veh ~= 0 then
+                SetVehicleFixed(veh)
+                SetVehicleDeformationFixed(veh)
+                SetVehicleUndriveable(veh, false)
+                SetVehicleEngineOn(veh, true, false)
+                SetVehicleDirtLevel(veh, 0.0)
+                ShowNotification("🔧 Véhicule réparé", "success")
+            end
+        end
+    end,
+
+    adm_refuel = function()
+        if IsPlayerAceAllowed(PlayerId(), "admin") then
+            local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+            if veh ~= 0 then
+                SetVehicleFuelLevel(veh, 100.0)
+                ShowNotification("⛽ Réservoir rempli", "success")
+            end
+        end
+    end,
+
+    phone = function()
+        TriggerEvent("kt_phone:open")
+    end,
 }
 
--- =============================================
--- CALLBACKS NUI
--- =============================================
-
+-- ─── NUI Callbacks ───────────────────────────────────────────────────────────
 RegisterNUICallback("menuAction", function(data, cb)
     local handler = actionHandlers[data.id]
     if handler then
         handler()
     else
         print("[KT Context] Action non gérée: " .. tostring(data.id))
+        TriggerEvent("kt_context:action", data.id, data)
     end
     cb("ok")
 end)
@@ -118,103 +230,15 @@ RegisterNUICallback("menuClosed", function(_, cb)
     cb("ok")
 end)
 
--- =============================================
--- COMMANDE DE TEST
--- =============================================
-
-RegisterCommand("menu", function()
-    local items = {
-        {
-            id = "inventory",
-            label = "Inventaire",
-            description = "Voir mes objets",
-            icon = "🎒"
-        },
-        {
-            id = "actions",
-            label = "Actions",
-            icon = "⚡",
-            submenu = {
-                { id = "wave",  label = "Saluer", icon = "👋" },
-                { id = "dance", label = "Danser", icon = "💃" }
-            }
-        },
-        {
-            id = "vehicle",
-            label = "Véhicule",
-            icon = "🚗",
-            disabled = not IsPedInAnyVehicle(PlayerPedId(), false),
-            submenu = {
-                { id = "lock_vehicle",  label = "Verrouiller",  icon = "🔒" },
-                { id = "engine_toggle", label = "Moteur On/Off", icon = "🔌" }
-            }
-        }
-    }
-    OpenContextMenu(nil, nil, items, "Menu Principal")
-end)
-
--- =============================================
--- ZONES DE MENU (nil-safe)
--- =============================================
-
-Citizen.CreateThread(function()
-    -- FIX: vérification nil-safe sur MenuZones
-    local menuZones = (Config and Config.MenuZones) or {}
-
-    if #menuZones == 0 then return end
-
-    while true do
-        local waitTime = 500
-        local ped = PlayerPedId()
-        local coords = GetEntityCoords(ped)
-
-        for _, zone in ipairs(menuZones) do
-            local distance = #(coords - zone.coords)
-            if distance < (zone.distance or 2.0) then
-                waitTime = 0
-
-                if zone.marker then
-                    DrawMarker(
-                        zone.marker.type or 2,
-                        zone.coords.x, zone.coords.y, zone.coords.z + 1.0,
-                        0, 0, 0, 0, 0, 0,
-                        zone.marker.size.x or 0.3,
-                        zone.marker.size.y or 0.3,
-                        zone.marker.size.z or 0.3,
-                        zone.marker.color.r or 255,
-                        zone.marker.color.g or 255,
-                        zone.marker.color.b or 255,
-                        zone.marker.color.a or 200,
-                        false, true, 2, false, nil, nil, false
-                    )
-                end
-
-                if distance < 1.5 then
-                    BeginTextCommandDisplayHelp("STRING")
-                    AddTextComponentSubstringPlayerName("Appuyez sur ~INPUT_CONTEXT~ pour ouvrir le menu")
-                    EndTextCommandDisplayHelp(0, false, true, -1)
-
-                    if IsControlJustReleased(0, 38) then
-                        OpenContextMenu(nil, nil, zone.items, zone.title)
-                    end
-                end
-            end
-        end
-
-        Wait(waitTime)
-    end
-end)
-
--- =============================================
--- DÉSACTIVER LES CONTRÔLES QUAND MENU OUVERT
--- =============================================
-
+-- ─── Désactivation contrôles quand menu ouvert ────────────────────────────────
 Citizen.CreateThread(function()
     while true do
         Wait(isMenuOpen and 0 or 500)
         if isMenuOpen then
             DisableControlAction(0, 1,   true)
             DisableControlAction(0, 2,   true)
+            DisableControlAction(0, 24,  true)
+            DisableControlAction(0, 25,  true)
             DisableControlAction(0, 142, true)
             DisableControlAction(0, 18,  true)
             DisableControlAction(0, 322, true)
@@ -223,10 +247,7 @@ Citizen.CreateThread(function()
     end
 end)
 
--- =============================================
--- EXPORTS
--- =============================================
-
-exports("OpenContextMenu", OpenContextMenu)
+-- ─── Exports ─────────────────────────────────────────────────────────────────
+exports("OpenContextMenu",  OpenContextMenu)
 exports("CloseContextMenu", CloseContextMenu)
-exports("IsMenuOpen", function() return isMenuOpen end)
+exports("IsMenuOpen",       function() return isMenuOpen end)

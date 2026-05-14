@@ -1,486 +1,210 @@
+-- =============================================
+-- EXEMPLES D'UTILISATION AVANCÉE
+-- =============================================
+
+-- ── Exemple 1 : Menu d'interaction joueur ────────────────────────────────────
 function OpenPlayerInteractionMenu(targetId, targetName)
-    local items = {
+    local sw, sh = GetActiveScreenResolution()
+    local items  = {
+        { id='player_info',  label='Voir l\'identité',  icon='User',       description=targetName },
+        { id='player_trade', label='Proposer un échange',icon='Handshake'  },
         {
-            id = "player_info",
-            label = "Voir l'identité",
-            description = "Afficher les informations du joueur",
-            icon = "👤"
-        },
-        {
-            id = "player_trade",
-            label = "Proposer un échange",
-            description = "Échanger des objets",
-            icon = "🤝"
-        },
-        {
-            id = "player_money",
-            label = "Transactions",
-            icon = "💰",
+            id='player_money', label='Transactions', icon='Banknote',
             submenu = {
-                {
-                    id = "give_money_50",
-                    label = "Donner 50$",
-                    icon = "💵"
-                },
-                {
-                    id = "give_money_100",
-                    label = "Donner 100$",
-                    icon = "💵"
-                },
-                {
-                    id = "give_money_500",
-                    label = "Donner 500$",
-                    icon = "💵"
-                },
-                {
-                    id = "give_money_custom",
-                    label = "Montant personnalisé...",
-                    icon = "💳"
-                }
+                { id='give_50',     label='Donner 50$',       icon='DollarSign' },
+                { id='give_100',    label='Donner 100$',      icon='DollarSign' },
+                { id='give_500',    label='Donner 500$',      icon='DollarSign' },
+                { id='give_custom', label='Montant libre…',   icon='PenLine'    },
             }
         },
         {
-            id = "player_emotes",
-            label = "Interactions sociales",
-            icon = "😊",
+            id='player_emotes', label='Interactions sociales', icon='Smile',
             submenu = {
-                {
-                    id = "handshake",
-                    label = "Serrer la main",
-                    icon = "🤝"
-                },
-                {
-                    id = "hug",
-                    label = "Faire un câlin",
-                    icon = "🤗"
-                },
-                {
-                    id = "high_five",
-                    label = "Taper dans la main",
-                    icon = "✋"
-                }
+                { id='handshake',  label='Serrer la main', icon='Handshake' },
+                { id='hug',        label='Câlin',          icon='Heart'     },
+                { id='high_five',  label='Taper dans la main', icon='Star'  },
             }
         },
-        {
-            id = "player_admin",
-            label = "Actions administrateur",
-            icon = "🛡️",
-            disabled = not IsPlayerAceAllowed(PlayerId(), "admin"),
+        -- Options admin conditionnelles
+        IsPlayerAceAllowed(PlayerId(), 'admin') and {
+            id='player_admin', label='Actions Admin', icon='ShieldAlert',
+            badge='admin', badgeColor='#f59e0b',
             submenu = {
-                {
-                    id = "admin_tp",
-                    label = "Se téléporter",
-                    icon = "📍"
-                },
-                {
-                    id = "admin_spectate",
-                    label = "Spectater",
-                    icon = "👁️"
-                },
-                {
-                    id = "admin_kick",
-                    label = "Expulser",
-                    icon = "❌",
-                    color = "#ef4444"
-                },
-                {
-                    id = "admin_ban",
-                    label = "Bannir",
-                    icon = "🚫",
-                    color = "#dc2626"
-                }
+                { id='adm_tp_to',   label='Se TP vers lui',   icon='ArrowRight' },
+                { id='adm_tp_here', label='TP lui vers moi',  icon='ArrowLeft'  },
+                { id='adm_kick',    label='Expulser',         icon='UserX',    variant='danger' },
+                { id='adm_ban',     label='Bannir',           icon='ShieldOff',variant='danger' },
+                { id='adm_heal_t',  label='Soigner le joueur',icon='Heart',   variant='success' },
             }
-        }
+        } or { id='_noop', label='', disabled=true },
     }
-    
-    OpenContextMenu(nil, nil, items, "🎮 " .. targetName)
+
+    -- Filtrer les nil
+    local clean = {}
+    for _, item in ipairs(items) do
+        if item and item.id ~= '_noop' then
+            table.insert(clean, item)
+        end
+    end
+
+    OpenContextMenu(sw / 2, sh / 2, clean, '👤 ' .. targetName)
 end
 
+-- ── Exemple 2 : Menu véhicule complet ────────────────────────────────────────
 function OpenAdvancedVehicleMenu()
     local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped, false)
-    
-    if vehicle == 0 then
-        vehicle = GetVehiclePedIsIn(ped, true)
-    end
-    
-    if vehicle == 0 then
-        ShowNotification("Aucun véhicule à proximité", "error")
+    local veh = GetVehiclePedIsIn(ped, false)
+    if veh == 0 then veh = GetVehiclePedIsIn(ped, true) end
+
+    if veh == 0 then
+        ShowNotification(L('no_vehicle'), 'error')
         return
     end
-    
-    local isDriver = GetPedInVehicleSeat(vehicle, -1) == ped
-    local engineHealth = GetVehicleEngineHealth(vehicle)
-    local bodyHealth = GetVehicleBodyHealth(vehicle)
-    local fuelLevel = GetVehicleFuelLevel(vehicle)
-    
+
+    local isDriver   = GetPedInVehicleSeat(veh, -1) == ped
+    local locked     = GetVehicleDoorLockStatus(veh) == 2
+    local engineOn   = GetIsVehicleEngineRunning(veh)
+    local fuelLevel  = GetVehicleFuelLevel(veh)
+    local engHealth  = GetVehicleEngineHealth(veh)
+    local bodyHealth = GetVehicleBodyHealth(veh)
+
     local items = {
         {
-            id = "vehicle_info",
-            label = "Informations",
-            description = string.format("Moteur: %.0f%% | Carrosserie: %.0f%% | Essence: %.0f%%", 
-                engineHealth/10, bodyHealth/10, fuelLevel),
-            icon = "ℹ️"
+            id='veh_info', label='Informations', icon='Info',
+            description=string.format('Moteur %.0f%% | Carrosserie %.0f%% | Essence %.0f%%',
+                engHealth/10, bodyHealth/10, fuelLevel)
         },
         {
-            id = "vehicle_lock",
-            label = GetVehicleDoorLockStatus(vehicle) == 1 and "Verrouiller" or "Déverrouiller",
-            description = "Contrôler l'accès au véhicule",
-            icon = GetVehicleDoorLockStatus(vehicle) == 1 and "🔓" or "🔒"
+            id='veh_lock',
+            label=locked and 'Déverrouiller' or 'Verrouiller',
+            icon=locked and 'LockOpen' or 'Lock',
         },
         {
-            id = "vehicle_engine",
-            label = "Gestion du moteur",
-            icon = "🔧",
-            disabled = not isDriver,
+            id='veh_engine', label='Gestion moteur', icon='Zap',
+            disabled=not isDriver,
             submenu = {
-                {
-                    id = "engine_toggle",
-                    label = GetIsVehicleEngineRunning(vehicle) and "Éteindre" or "Allumer",
-                    icon = "🔌"
-                },
-                {
-                    id = "engine_boost",
-                    label = "Mode sport",
-                    description = "Augmenter les performances",
-                    icon = "⚡"
-                }
+                { id='engine_toggle', label=engineOn and 'Éteindre' or 'Allumer', icon='Power' },
+                { id='engine_boost',  label='Mode sport', icon='Gauge', description='Meilleures performances' },
             }
         },
         {
-            id = "vehicle_doors",
-            label = "Contrôle des portes",
-            icon = "🚪",
+            id='veh_doors', label='Portes', icon='DoorOpen',
             submenu = {
-                {
-                    id = "door_fl",
-                    label = "Avant gauche",
-                    icon = "🚪"
-                },
-                {
-                    id = "door_fr",
-                    label = "Avant droite",
-                    icon = "🚪"
-                },
-                {
-                    id = "door_rl",
-                    label = "Arrière gauche",
-                    icon = "🚪"
-                },
-                {
-                    id = "door_rr",
-                    label = "Arrière droite",
-                    icon = "🚪"
-                },
-                {
-                    id = "door_hood",
-                    label = "Capot",
-                    icon = "🔩"
-                },
-                {
-                    id = "door_trunk",
-                    label = "Coffre",
-                    icon = "📦"
-                },
-                {
-                    id = "door_all_close",
-                    label = "Tout fermer",
-                    icon = "🔒"
-                }
+                { id='door_fl',   label='Avant gauche',   icon='SquareDot' },
+                { id='door_fr',   label='Avant droite',   icon='SquareDot' },
+                { id='door_rl',   label='Arrière gauche', icon='SquareDot' },
+                { id='door_rr',   label='Arrière droite', icon='SquareDot' },
+                { id='door_hood', label='Capot',          icon='SquareDot' },
+                { id='door_trunk',label='Coffre',         icon='SquareDot' },
+                { id='_divd', divider=true, label='' },
+                { id='door_all_close', label='Tout fermer', icon='Lock' },
             }
         },
         {
-            id = "vehicle_windows",
-            label = "Contrôle des vitres",
-            icon = "🪟",
-            disabled = not IsPedInAnyVehicle(ped, false),
+            id='veh_windows', label='Vitres', icon='Maximize2',
             submenu = {
-                {
-                    id = "window_all_up",
-                    label = "Toutes monter",
-                    icon = "⬆️"
-                },
-                {
-                    id = "window_all_down",
-                    label = "Toutes descendre",
-                    icon = "⬇️"
-                }
+                { id='win_up',   label='Toutes monter',    icon='ArrowUp'   },
+                { id='win_down', label='Toutes descendre', icon='ArrowDown' },
             }
         },
-        {
-            id = "vehicle_extras",
-            label = "Extras & Personnalisation",
-            icon = "✨",
-            submenu = {
-                {
-                    id = "toggle_livery",
-                    label = "Changer la livrée",
-                    icon = "🎨"
-                },
-                {
-                    id = "toggle_neon",
-                    label = "Néons",
-                    icon = "💡"
-                },
-                {
-                    id = "horn",
-                    label = "Tester le klaxon",
-                    icon = "📢"
-                }
-            }
-        },
-        {
-            id = "vehicle_admin",
-            label = "Actions administrateur",
-            icon = "🛠️",
-            disabled = not IsPlayerAceAllowed(PlayerId(), "admin"),
-            submenu = {
-                {
-                    id = "admin_repair",
-                    label = "Réparer complètement",
-                    description = "Restaurer le véhicule",
-                    icon = "🔧"
-                },
-                {
-                    id = "admin_refuel",
-                    label = "Remplir le réservoir",
-                    icon = "⛽"
-                },
-                {
-                    id = "admin_upgrade",
-                    label = "Améliorer au maximum",
-                    icon = "⭐"
-                },
-                {
-                    id = "admin_delete",
-                    label = "Supprimer",
-                    icon = "🗑️",
-                    color = "#ef4444"
-                }
-            }
-        }
     }
-    
-    OpenContextMenu(nil, nil, items, "🚗 Menu Véhicule")
-end
 
-function OpenInventoryMenu(items)
-    local menuItems = {}
-    
-    local categories = {
-        weapons = { label = "Armes", icon = "🔫", items = {} },
-        consumables = { label = "Consommables", icon = "🍔", items = {} },
-        tools = { label = "Outils", icon = "🔧", items = {} },
-        misc = { label = "Divers", icon = "📦", items = {} }
-    }
-    
-    for _, item in ipairs(items) do
-        local category = item.category or "misc"
-        if categories[category] then
-            table.insert(categories[category].items, {
-                id = "use_" .. item.name,
-                label = item.label,
-                description = string.format("Quantité: %d", item.count),
-                icon = item.icon or "📦"
-            })
-        end
-    end
-    
-    for catKey, category in pairs(categories) do
-        if #category.items > 0 then
-            table.insert(menuItems, {
-                id = "cat_" .. catKey,
-                label = category.label,
-                description = string.format("%d objets", #category.items),
-                icon = category.icon,
-                submenu = category.items
-            })
-        end
-    end
-    
-    table.insert(menuItems, 1, {
-        id = "inventory_sort",
-        label = "Trier",
-        icon = "🔄",
-        submenu = {
-            { id = "sort_name", label = "Par nom", icon = "🔤" },
-            { id = "sort_quantity", label = "Par quantité", icon = "🔢" },
-            { id = "sort_recent", label = "Plus récent", icon = "🕐" }
-        }
-    })
-    
-    table.insert(menuItems, {
-        id = "inventory_drop",
-        label = "Jeter un objet",
-        description = "Abandonner un objet au sol",
-        icon = "🗑️"
-    })
-    
-    OpenContextMenu(nil, nil, menuItems, "🎒 Inventaire")
-end
-
-function OpenPhoneMenu()
-    local items = {
-        {
-            id = "phone_contacts",
-            label = "Contacts",
-            description = "12 contacts disponibles",
-            icon = "👥",
-            submenu = {
-                {
-                    id = "contact_add",
-                    label = "Ajouter un contact",
-                    icon = "➕"
-                },
-                {
-                    id = "contact_view",
-                    label = "Voir les contacts",
-                    icon = "📋"
-                }
-            }
-        },
-        {
-            id = "phone_messages",
-            label = "Messages",
-            description = "3 nouveaux messages",
-            icon = "💬"
-        },
-        {
-            id = "phone_calls",
-            label = "Appels",
-            icon = "📞",
-            submenu = {
-                {
-                    id = "call_recent",
-                    label = "Appels récents",
-                    icon = "📋"
-                },
-                {
-                    id = "call_new",
-                    label = "Composer un numéro",
-                    icon = "🔢"
-                }
-            }
-        },
-        {
-            id = "phone_apps",
-            label = "Applications",
-            icon = "📱",
-            submenu = {
-                {
-                    id = "app_bank",
-                    label = "Banque",
-                    icon = "🏦"
-                },
-                {
-                    id = "app_gps",
-                    label = "GPS",
-                    icon = "🗺️"
-                },
-                {
-                    id = "app_camera",
-                    label = "Appareil photo",
-                    icon = "📸"
-                },
-                {
-                    id = "app_music",
-                    label = "Musique",
-                    icon = "🎵"
-                }
-            }
-        },
-        {
-            id = "phone_settings",
-            label = "Paramètres",
-            icon = "⚙️",
-            submenu = {
-                {
-                    id = "settings_volume",
-                    label = "Volume",
-                    icon = "🔊"
-                },
-                {
-                    id = "settings_wallpaper",
-                    label = "Fond d'écran",
-                    icon = "🖼️"
-                },
-                {
-                    id = "settings_airplane",
-                    label = "Mode avion",
-                    icon = "✈️"
-                }
-            }
-        }
-    }
-    
-    OpenContextMenu(nil, nil, items, "📱 Téléphone")
-end
-
-function OpenContextualMenu()
-    local ped = PlayerPedId()
-    local coords = GetEntityCoords(ped)
-    local items = {}
-    
-    local vehicle, vehDist = GetClosestVehicle(coords)
-    if vehicle ~= -1 and vehDist < 5.0 then
+    -- Options admin en bas si autorisé
+    if IsPlayerAceAllowed(PlayerId(), 'admin') then
+        table.insert(items, { id='_divadm', divider=true, label='' })
         table.insert(items, {
-            id = "vehicle_menu",
-            label = "Interagir avec le véhicule",
-            description = string.format("%.1fm", vehDist),
-            icon = "🚗"
+            id='veh_admin', label='Admin Véhicule', icon='ShieldAlert',
+            badge='admin', badgeColor='#f59e0b',
+            submenu = {
+                { id='adm_repair',  label='Réparer complètement', icon='Wrench',  variant='success' },
+                { id='adm_refuel',  label='Remplir le réservoir', icon='Fuel',    variant='success' },
+                { id='adm_upgrade', label='Améliorer au max',     icon='Star'     },
+                { id='adm_delete',  label='Supprimer',            icon='Trash2',  variant='danger'  },
+            }
         })
     end
-    
-    local player, playerDist = GetClosestPlayer(coords)
-    if player ~= -1 and playerDist < 3.0 then
-        table.insert(items, {
-            id = "player_interact",
-            label = "Interagir avec " .. GetPlayerName(player),
-            description = string.format("%.1fm", playerDist),
-            icon = "👤"
-        })
-    end
-    
-    table.insert(items, {
-        id = "general_actions",
-        label = "Actions générales",
-        icon = "⚡",
-        submenu = {
-            { id = "emotes", label = "Émotes", icon = "😊" },
-            { id = "inventory", label = "Inventaire", icon = "🎒" },
-            { id = "phone", label = "Téléphone", icon = "📱" }
-        }
-    })
-    
-    if #items == 1 then
-        table.insert(items, 1, {
-            id = "no_action",
-            label = "Aucune interaction proche",
-            disabled = true,
-            icon = "❌"
-        })
-    end
-    
-    OpenContextMenu(nil, nil, items, "Menu Contextuel")
+
+    local sw, sh = GetActiveScreenResolution()
+    OpenContextMenu(sw / 2, sh / 2, items, '🚗 Menu Véhicule')
 end
 
-RegisterCommand("playermenu", function(source, args)
-    local targetId = tonumber(args[1])
-    if targetId then
-        local targetName = GetPlayerName(targetId)
-        if targetName then
-            OpenPlayerInteractionMenu(targetId, targetName)
-        else
-            ShowNotification("Joueur invalide", "error")
-        end
-    else
-        ShowNotification("Usage: /playermenu [ID]", "error")
-    end
+-- ── Exemple 3 : Zones interactives enregistrées ───────────────────────────────
+Citizen.CreateThread(function()
+    Wait(2000)
+
+    -- Zone mécanique
+    RegisterMenuZone({
+        id     = 'zone_meca',
+        coords = vector3(-352.66, -133.72, 38.56),
+        radius = 3.5,
+        shape  = 'circle',
+        title  = '🔧 Atelier Mécanique',
+        hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à l\'atelier',
+        marker = { type=2, color={r=59,g=130,b=246,a=130}, size=vector3(3.5,3.5,0.3) },
+        items  = {
+            { id='repair_veh',  label='Réparer le véhicule',   icon='Wrench'  },
+            { id='upgrade_veh', label='Améliorer le véhicule', icon='Star'    },
+            { id='change_color',label='Changer la couleur',    icon='Palette' },
+        },
+    })
+
+    -- Zone banque
+    RegisterMenuZone({
+        id     = 'zone_bank',
+        coords = vector3(150.15, -1040.9, 29.37),
+        radius = 4.0,
+        shape  = 'circle',
+        title  = '🏦 Banque',
+        hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à la banque',
+        marker = { type=2, color={r=16,g=185,b=129,a=130}, size=vector3(4.0,4.0,0.3) },
+        items  = {
+            { id='bank_deposit',  label='Déposer',     icon='ArrowUpFromLine'   },
+            { id='bank_withdraw', label='Retirer',     icon='ArrowDownToLine'   },
+            { id='bank_balance',  label='Voir solde',  icon='Wallet'            },
+        },
+    })
+
+    -- Zone police
+    RegisterMenuZone({
+        id     = 'zone_police',
+        coords = vector3(441.43, -982.14, 30.69),
+        radius = 5.0,
+        shape  = 'circle',
+        title  = '👮 Commissariat',
+        hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour les services de police',
+        marker = { type=2, color={r=239,g=68,b=68,a=110}, size=vector3(5.0,5.0,0.3) },
+        condition = function() return IsPlayerAceAllowed(PlayerId(), 'police') end,
+        items  = {
+            { id='police_duty',   label='Prise de service',     icon='Shield'   },
+            { id='police_armory', label='Armurerie',            icon='Swords'   },
+            { id='police_garage', label='Garage',               icon='Car'      },
+            { id='police_jail',   label='Gérer les prisonniers',icon='Lock'     },
+        },
+    })
+end)
+
+-- ── Commandes de test ─────────────────────────────────────────────────────────
+RegisterCommand('vmenu',   OpenAdvancedVehicleMenu, false)
+RegisterCommand('cmenu',   function()
+    local sw, sh = GetActiveScreenResolution()
+    OpenGeneralContextMenu(sw / 2, sh / 2)
 end, false)
 
-RegisterCommand("vmenu", OpenAdvancedVehicleMenu, false)
-RegisterCommand("phone", OpenPhoneMenu, false)
-RegisterCommand("cmenu", OpenContextualMenu, false)
+RegisterCommand('testzone', function()
+    RegisterMenuZone({
+        id     = 'zone_test_' .. GetGameTimer(),
+        coords = GetEntityCoords(PlayerPedId()),
+        radius = 3.0,
+        title  = '🧪 Zone Test',
+        hint   = 'Test de zone – ~INPUT_CONTEXT~',
+        marker = { type=2, color={r=245,g=158,b=11,a=150}, size=vector3(3.0,3.0,0.3) },
+        items  = {
+            { id='test_1', label='Action 1', icon='Zap'   },
+            { id='test_2', label='Action 2', icon='Star'  },
+            { id='test_3', label='Action 3', icon='Heart' },
+        },
+    })
+    ShowNotification('Zone test créée à votre position', 'success')
+end, false)
 
--- Bind pour ouvrir le menu contextuel avec une touche
-RegisterKeyMapping("cmenu", "Ouvrir le menu contextuel", "keyboard", "RMENU")
+RegisterKeyMapping('cmenu', 'Ouvrir le menu contextuel général', 'keyboard', 'RMENU')

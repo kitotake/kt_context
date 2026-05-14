@@ -1,78 +1,55 @@
 -- =============================================
--- UTILS - Doit être chargé EN PREMIER
+-- UTILS – Doit être chargé EN PREMIER
 -- =============================================
 
-function ShowNotification(message, type)
-    type = type or "info"
-
-    local colors = {
-        success = {10, 185, 129},
-        error   = {239, 68, 68},
-        warning = {245, 158, 11},
-        info    = {59, 130, 246}
-    }
-
-    local color = colors[type] or colors.info
-
+-- Notification visuelle FiveM
+function ShowNotification(message, notifType)
+    notifType = notifType or "info"
     SetNotificationTextEntry("STRING")
     AddTextComponentString(message)
-    SetNotificationMessage("CHAR_DEFAULT", "CHAR_DEFAULT", true, 1, "Notification", "")
-    SetNotificationBackgroundColor(color[1])
     DrawNotification(false, true)
 end
 
+-- Véhicule le plus proche
 function GetClosestVehicle(coords)
     coords = coords or GetEntityCoords(PlayerPedId())
     local vehicles = GetGamePool('CVehicle')
-    local closestDistance = -1
-    local closestVehicle = -1
-
-    for i = 1, #vehicles do
-        local vehicleCoords = GetEntityCoords(vehicles[i])
-        local distance = #(vehicleCoords - coords)
-
-        if closestDistance == -1 or closestDistance > distance then
-            closestVehicle = vehicles[i]
-            closestDistance = distance
+    local closestDist, closestVeh = -1, -1
+    for _, veh in ipairs(vehicles) do
+        local d = #(GetEntityCoords(veh) - coords)
+        if closestDist == -1 or d < closestDist then
+            closestVeh, closestDist = veh, d
         end
     end
-
-    return closestVehicle, closestDistance
+    return closestVeh, closestDist
 end
 
+-- Joueur le plus proche
 function GetClosestPlayer(coords)
     coords = coords or GetEntityCoords(PlayerPedId())
-    local closestDistance = -1
-    local closestPlayer = -1
-    local players = GetActivePlayers()
-
-    for _, player in ipairs(players) do
+    local closestDist, closestPlayer = -1, -1
+    for _, player in ipairs(GetActivePlayers()) do
         if player ~= PlayerId() then
-            local targetPed = GetPlayerPed(player)
-            if DoesEntityExist(targetPed) then
-                local targetCoords = GetEntityCoords(targetPed)
-                local distance = #(targetCoords - coords)
-
-                if closestDistance == -1 or distance < closestDistance then
-                    closestPlayer = player
-                    closestDistance = distance
+            local ped = GetPlayerPed(player)
+            if DoesEntityExist(ped) then
+                local d = #(GetEntityCoords(ped) - coords)
+                if closestDist == -1 or d < closestDist then
+                    closestPlayer, closestDist = player, d
                 end
             end
         end
     end
-
-    return closestPlayer, closestDistance
+    return closestPlayer, closestDist
 end
 
+-- Texte 3D dans le monde
 function Draw3DText(coords, text)
-    local onScreen, _x, _y = World3dToScreen2d(coords.x, coords.y, coords.z)
+    local onScreen, sx, sy = World3dToScreen2d(coords.x, coords.y, coords.z)
     local px, py, pz = table.unpack(GetGameplayCamCoords())
     local dist = #(vector3(px, py, pz) - coords)
-
     local scale = (1 / dist) * 2
-    local fov = (1 / GetGameplayCamFov()) * 100
+    local fov   = (1 / GetGameplayCamFov()) * 100
     scale = scale * fov
-
     if onScreen then
         SetTextScale(0.0 * scale, 0.55 * scale)
         SetTextFont(4)
@@ -85,17 +62,36 @@ function Draw3DText(coords, text)
         SetTextEntry("STRING")
         SetTextCentre(1)
         AddTextComponentString(text)
-        DrawText(_x, _y)
+        DrawText(sx, sy)
     end
 end
 
+-- Toggle porte véhicule
 function ToggleVehicleDoor(doorIndex)
-    local vehicle = GetVehiclePedIsIn(PlayerPedId(), true)
-    if vehicle ~= 0 then
-        if GetVehicleDoorAngleRatio(vehicle, doorIndex) > 0 then
-            SetVehicleDoorShut(vehicle, doorIndex, false)
+    local veh = GetVehiclePedIsIn(PlayerPedId(), true)
+    if veh ~= 0 then
+        if GetVehicleDoorAngleRatio(veh, doorIndex) > 0 then
+            SetVehicleDoorShut(veh, doorIndex, false)
         else
-            SetVehicleDoorOpen(vehicle, doorIndex, false, false)
+            SetVehicleDoorOpen(veh, doorIndex, false, false)
         end
     end
+end
+
+-- Vérification rôle admin
+function IsPlayerAdmin()
+    for _, ace in pairs(Config.AdminAces) do
+        if IsPlayerAceAllowed(PlayerId(), ace) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Obtenir le rôle admin
+function GetAdminRole()
+    if IsPlayerAceAllowed(PlayerId(), 'founder')    then return 'founder'    end
+    if IsPlayerAceAllowed(PlayerId(), 'admin')      then return 'admin'      end
+    if IsPlayerAceAllowed(PlayerId(), 'moderator')  then return 'moderator'  end
+    return nil
 end
