@@ -11,7 +11,7 @@ shared_scripts {
 }
 
 
-ui_page 'web/build/index.html'
+ui_page 'web/dist/index.html'
 
 client_scripts {
     'client/utils.lua',
@@ -33,8 +33,8 @@ server_scripts {
 }
 
 files {
-    'web/build/index.html',
-    'web/build/**/*'
+    'web/dist/index.html',
+    'web/dist/**/*'
 }
 
 exports {
