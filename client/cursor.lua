@@ -2,11 +2,12 @@
 -- SYSTÈME DE CURSEUR (ALT GAUCHE)
 -- =============================================
 
-local cursorActive  = false
-local cursorX, cursorY = 0.5, 0.5   -- Coordonnées normalisées (0..1)
+-- Sécurité : Config doit être chargé avant ce fichier (garanti par fxmanifest)
+local CURSOR_KEY   = Config and Config.CursorKey   or 19
+local CURSOR_SPEED = 0.002
 
--- Vitesse de déplacement du curseur (sensibilité)
-local CURSOR_SPEED  = 0.002
+local cursorActive    = false
+local cursorX, cursorY = 0.5, 0.5   -- Coordonnées normalisées (0..1)
 
 -- Expose le statut
 function IsCursorActive()
@@ -18,14 +19,12 @@ Citizen.CreateThread(function()
     while true do
         local sleep = 100
 
-        -- ALT GAUCHE maintenu (control 19)
-        if IsControlPressed(0, Config.CursorKey) and not IsMenuOpen() then
+        if IsControlPressed(0, CURSOR_KEY) and not IsMenuOpen() then
             sleep = 0
 
             if not cursorActive then
-                -- Activation du curseur
                 cursorActive = true
-                SetNuiFocus(false, false)   -- le NUI écoute souris mais pas focus clavier
+                SetNuiFocus(false, false)
                 SendNUIMessage({ type = 'cursorShow', data = { visible = true } })
             end
 
@@ -37,7 +36,7 @@ Citizen.CreateThread(function()
             DisableControlAction(0, 24,  true)   -- Attack
             DisableControlAction(0, 25,  true)   -- Aim
             DisableControlAction(0, 68,  true)   -- VehicleExit
-            DisableControlAction(0, 69,  true)   -- Enter
+            DisableControlAction(0, 69,  true)   -- Enter véhicule
 
             -- Déplacement du curseur via souris
             local dx = GetDisabledControlNormal(0, 239)  -- MouseX
@@ -45,19 +44,17 @@ Citizen.CreateThread(function()
             cursorX = math.min(math.max(cursorX + dx * CURSOR_SPEED, 0.0), 1.0)
             cursorY = math.min(math.max(cursorY + dy * CURSOR_SPEED, 0.0), 1.0)
 
-            -- Mise à jour position curseur dans la NUI
             SendNUIMessage({
                 type = 'cursorMove',
                 data = { x = cursorX, y = cursorY }
             })
 
-            -- Clic gauche → détection entité + ouverture menu
-            if IsDisabledControlJustPressed(0, 24) then  -- Attack (clic G)
+            -- Clic gauche → ouverture menu
+            if IsDisabledControlJustPressed(0, 24) then
                 HandleCursorClick(cursorX, cursorY)
             end
 
         elseif cursorActive then
-            -- Désactivation du curseur (ALT relâché)
             cursorActive = false
             SendNUIMessage({ type = 'cursorShow', data = { visible = false } })
         end
@@ -68,52 +65,66 @@ end)
 
 -- ─── Gestion du clic curseur ────────────────────────────────────────────────
 function HandleCursorClick(nx, ny)
-    -- Convertir coordonnées normalisées en pixels écran
     local sw, sh = GetActiveScreenResolution()
+
+    -- Coordonnées écran du curseur
     local screenX = nx * sw
     local screenY = ny * sh
 
-    -- Calculer la direction du rayon depuis la caméra
+    -- Raycast depuis la caméra vers le point visé par le curseur
+    -- Utilisation de GetWorldPositionOfScreenCoords pour un résultat précis
     local camCoords = GetGameplayCamCoords()
     local camRot    = GetGameplayCamRot(2)
-    local camFwd    = RotationToDirection(camRot)
+    local camFov    = GetGameplayCamFov()
 
-    -- Ajustement pour le décalage curseur vs centre
-    local fovH = GetGameplayCamFov()
-    local fovV = fovH * (sh / sw)
-    local offsetX = math.tan(math.rad(fovH / 2)) * (nx * 2 - 1)
-    local offsetY = math.tan(math.rad(fovV / 2)) * (1 - ny * 2)
+    -- Angle horizontal et vertical depuis le centre de l'écran
+    local halfFovH = math.rad(camFov / 2)
+    local halfFovV = math.rad(camFov * (sh / sw) / 2)
 
-    -- Raycast depuis la caméra vers le monde
-    local dir = vector3(
-        camFwd.x + offsetX * math.cos(math.rad(camRot.z)) - offsetY * math.sin(math.rad(camRot.z)),
-        camFwd.y + offsetX * math.sin(math.rad(camRot.z)) + offsetY * math.cos(math.rad(camRot.z)),
-        camFwd.z + offsetY
+    local offsetH = (nx - 0.5) * 2 * math.tan(halfFovH)
+    local offsetV = (0.5 - ny) * 2 * math.tan(halfFovV)
+
+    -- Direction caméra de base
+    local fwd = RotationToDirection(camRot)
+
+    -- Vecteurs droite et haut de la caméra
+    local rx = math.rad(camRot.x)
+    local rz = math.rad(camRot.z)
+    local right = vector3(math.cos(rz), math.sin(rz), 0.0)
+    local up    = vector3(
+        -math.sin(rz) * math.sin(rx),
+         math.cos(rz) * math.sin(rx),
+         math.cos(rx)
     )
-    -- Normaliser
+
+    -- Direction du rayon vers le pixel visé
+    local dir = vector3(
+        fwd.x + right.x * offsetH + up.x * offsetV,
+        fwd.y + right.y * offsetH + up.y * offsetV,
+        fwd.z + right.z * offsetH + up.z * offsetV
+    )
     local len = math.sqrt(dir.x^2 + dir.y^2 + dir.z^2)
+    if len == 0 then return end
     dir = vector3(dir.x/len, dir.y/len, dir.z/len)
 
-    local startCoord  = camCoords
-    local endCoord    = startCoord + dir * 50.0
+    local startCoord = camCoords
+    local endCoord   = startCoord + dir * 50.0
 
-    -- Raycast (type 87 = tout sauf eau)
+    -- Raycast (flags 87 = peds + véhicules + objets + monde)
     local ray = StartExpensiveSynchronousShapeTestLosProbe(
         startCoord.x, startCoord.y, startCoord.z,
         endCoord.x,   endCoord.y,   endCoord.z,
         87, PlayerPedId(), 4
     )
-    local retval, hit, hitCoords, surfaceNormal, hitEntity = GetShapeTestResult(ray)
+    local _, hit, _, _, hitEntity = GetShapeTestResult(ray)
 
-    -- Calculer la position NUI du menu (pixels → ratio écran)
     local menuX = nx * sw
     local menuY = ny * sh
 
     if hit == 1 and hitEntity ~= 0 then
-        local entityType = GetEntityType(hitEntity)  -- 1=ped, 2=vehicle, 3=object
+        local entityType = GetEntityType(hitEntity)
         OpenContextForEntity(hitEntity, entityType, menuX, menuY)
     else
-        -- Clic sur terrain / air → menu général
         OpenGeneralContextMenu(menuX, menuY)
     end
 end
@@ -136,24 +147,20 @@ function OpenContextForEntity(entity, entityType, x, y)
     local items     = {}
 
     if entityType == 1 then
-        -- PED
         local isPlayer = IsPedAPlayer(entity)
         if isPlayer then
-            local serverId  = NetworkGetPlayerIndexFromPed(entity)
             local playerName = GetPlayerName(GetPlayerFromPed(entity)) or "Joueur"
+            local serverId   = NetworkGetPlayerIndexFromPed(entity)
             items = BuildPlayerMenu(serverId, playerName, isAdmin)
         else
             items = BuildNpcMenu(entity, isAdmin)
         end
 
     elseif entityType == 2 then
-        -- VEHICLE
-        local model  = GetEntityModel(entity)
         local locked = GetVehicleDoorLockStatus(entity) ~= 1
         items = BuildVehicleMenu(entity, locked, isAdmin)
 
     elseif entityType == 3 then
-        -- OBJECT / PROP
         items = BuildPropMenu(entity, isAdmin)
 
     else
@@ -161,16 +168,15 @@ function OpenContextForEntity(entity, entityType, x, y)
         return
     end
 
-    -- Injecter les options admin en bas si admin
     if isAdmin and adminRole then
-        table.insert(items, { id = '_div_admin', divider = true })
+        table.insert(items, { id = '_div_admin', divider = true, label = '' })
         table.insert(items, {
-            id       = 'admin_section',
-            label    = '⚡ ' .. L('admin_options') .. ' [' .. adminRole .. ']',
-            icon     = 'ShieldAlert',
-            badge    = adminRole,
+            id         = 'admin_section',
+            label      = '⚡ ' .. L('admin_options') .. ' [' .. adminRole .. ']',
+            icon       = 'ShieldAlert',
+            badge      = adminRole,
             badgeColor = '#f59e0b',
-            submenu  = BuildAdminEntityMenu(entity, entityType),
+            submenu    = BuildAdminEntityMenu(entity, entityType),
         })
     end
 
@@ -179,10 +185,7 @@ end
 
 function GetEntityMenuTitle(entityType, entity)
     if entityType == 1 then
-        if IsPedAPlayer(entity) then
-            return '👤 Joueur'
-        end
-        return '🤖 PNJ'
+        return IsPedAPlayer(entity) and '👤 Joueur' or '🤖 PNJ'
     elseif entityType == 2 then
         return '🚗 Véhicule'
     elseif entityType == 3 then
@@ -194,17 +197,17 @@ end
 -- ─── Menus par type ──────────────────────────────────────────────────────────
 function BuildPlayerMenu(serverId, playerName, isAdmin)
     return {
-        { id = 'player_info',  label = 'Voir l\'identité',      icon = 'User',        description = playerName },
-        { id = 'player_trade', label = 'Proposer un échange',    icon = 'Handshake' },
+        { id = 'player_info',  label = 'Voir l\'identité',    icon = 'User',       description = playerName },
+        { id = 'player_trade', label = 'Proposer un échange', icon = 'Handshake'   },
         {
             id    = 'player_money',
             label = 'Transactions',
             icon  = 'Banknote',
             submenu = {
-                { id = 'give_50',     label = 'Donner 50$',   icon = 'DollarSign' },
-                { id = 'give_100',    label = 'Donner 100$',  icon = 'DollarSign' },
-                { id = 'give_500',    label = 'Donner 500$',  icon = 'DollarSign' },
-                { id = 'give_custom', label = 'Montant libre…',icon = 'PenLine'    },
+                { id = 'give_50',     label = 'Donner 50$',    icon = 'DollarSign' },
+                { id = 'give_100',    label = 'Donner 100$',   icon = 'DollarSign' },
+                { id = 'give_500',    label = 'Donner 500$',   icon = 'DollarSign' },
+                { id = 'give_custom', label = 'Montant libre…', icon = 'PenLine'   },
             }
         },
         {
@@ -212,9 +215,9 @@ function BuildPlayerMenu(serverId, playerName, isAdmin)
             label = 'Interactions sociales',
             icon  = 'Smile',
             submenu = {
-                { id = 'wave',       label = 'Saluer',            icon = 'Hand'  },
-                { id = 'hug',        label = 'Câlin',             icon = 'Heart' },
-                { id = 'high_five',  label = 'Taper dans la main',icon = 'Star'  },
+                { id = 'wave',      label = 'Saluer',             icon = 'Hand'  },
+                { id = 'hug',       label = 'Câlin',              icon = 'Heart' },
+                { id = 'high_five', label = 'Taper dans la main', icon = 'Star'  },
             }
         },
     }
@@ -222,9 +225,9 @@ end
 
 function BuildNpcMenu(entity, isAdmin)
     return {
-        { id = 'npc_talk',   label = 'Parler',         icon = 'MessageCircle' },
-        { id = 'npc_follow', label = 'Suivre',          icon = 'MapPin'        },
-        { id = 'npc_stop',   label = 'Arrêter',         icon = 'StopCircle', color = '#ef4444' },
+        { id = 'npc_talk',   label = 'Parler',  icon = 'MessageCircle' },
+        { id = 'npc_follow', label = 'Suivre',  icon = 'MapPin'        },
+        { id = 'npc_stop',   label = 'Arrêter', icon = 'StopCircle',   color = '#ef4444' },
     }
 end
 
@@ -259,17 +262,17 @@ function BuildVehicleMenu(entity, locked, isAdmin)
             label = 'Vitres',
             icon  = 'Maximize2',
             submenu = {
-                { id = 'win_up',   label = 'Monter toutes',   icon = 'ArrowUp'   },
-                { id = 'win_down', label = 'Descendre toutes',icon = 'ArrowDown' },
+                { id = 'win_up',   label = 'Monter toutes',    icon = 'ArrowUp'   },
+                { id = 'win_down', label = 'Descendre toutes', icon = 'ArrowDown' },
             }
         },
         {
-            id    = 'veh_info',
-            label = 'Informations',
-            icon  = 'Info',
+            id          = 'veh_info',
+            label       = 'Informations',
+            icon        = 'Info',
             description = string.format('Moteur: %.0f%% | Carrosserie: %.0f%%',
-                GetVehicleEngineHealth(entity)/10,
-                GetVehicleBodyHealth(entity)/10
+                GetVehicleEngineHealth(entity) / 10,
+                GetVehicleBodyHealth(entity)   / 10
             ),
         },
     }
@@ -277,22 +280,22 @@ end
 
 function BuildPropMenu(entity, isAdmin)
     return {
-        { id = 'prop_info',   label = 'Inspecter',    icon = 'Search'  },
-        { id = 'prop_use',    label = 'Utiliser',     icon = 'Zap'     },
-        { id = 'prop_grab',   label = 'Prendre',      icon = 'Package' },
+        { id = 'prop_info', label = 'Inspecter', icon = 'Search'  },
+        { id = 'prop_use',  label = 'Utiliser',  icon = 'Zap'     },
+        { id = 'prop_grab', label = 'Prendre',   icon = 'Package' },
     }
 end
 
 function BuildAdminEntityMenu(entity, entityType)
     local items = {
-        { id = 'adm_coords',   label = 'Coordonnées',    icon = 'MapPin', description = FormatCoords(GetEntityCoords(entity)) },
-        { id = 'adm_delete',   label = 'Supprimer',      icon = 'Trash2', color = '#ef4444' },
-        { id = 'adm_freeze',   label = 'Geler / Dégeler',icon = 'Pause'  },
+        { id = 'adm_coords', label = 'Coordonnées',     icon = 'MapPin',  description = FormatCoords(GetEntityCoords(entity)) },
+        { id = 'adm_delete', label = 'Supprimer',       icon = 'Trash2',  color = '#ef4444' },
+        { id = 'adm_freeze', label = 'Geler / Dégeler', icon = 'Pause'   },
     }
     if entityType == 1 then
-        table.insert(items, { id = 'adm_kick',   label = 'Expulser',  icon = 'UserX',    color = '#ef4444' })
-        table.insert(items, { id = 'adm_ban',    label = 'Bannir',    icon = 'ShieldOff',color = '#dc2626' })
-        table.insert(items, { id = 'adm_heal',   label = 'Soigner',   icon = 'Heart',    color = '#10b981' })
+        table.insert(items, { id = 'adm_kick', label = 'Expulser',  icon = 'UserX',    color = '#ef4444' })
+        table.insert(items, { id = 'adm_ban',  label = 'Bannir',    icon = 'ShieldOff',color = '#dc2626' })
+        table.insert(items, { id = 'adm_heal', label = 'Soigner',   icon = 'Heart',    color = '#10b981' })
         table.insert(items, {
             id    = 'adm_teleport',
             label = 'Téléportation',
@@ -303,8 +306,8 @@ function BuildAdminEntityMenu(entity, entityType)
             }
         })
     elseif entityType == 2 then
-        table.insert(items, { id = 'adm_repair', label = 'Réparer',   icon = 'Wrench',   color = '#10b981' })
-        table.insert(items, { id = 'adm_refuel', label = 'Remplir essence', icon = 'Fuel' })
+        table.insert(items, { id = 'adm_repair', label = 'Réparer',         icon = 'Wrench', color = '#10b981' })
+        table.insert(items, { id = 'adm_refuel', label = 'Remplir essence', icon = 'Fuel'   })
     end
     return items
 end
@@ -319,7 +322,6 @@ function OpenGeneralContextMenu(x, y)
     local coords = GetEntityCoords(ped)
     local items  = {}
 
-    -- Véhicule proche ?
     local veh, vehDist = GetClosestVehicle(coords)
     if veh ~= -1 and vehDist < Config.InteractionDistance then
         table.insert(items, {
@@ -330,49 +332,42 @@ function OpenGeneralContextMenu(x, y)
         })
     end
 
-    -- Actions joueur
     table.insert(items, {
         id    = 'player_actions',
         label = 'Actions joueur',
         icon  = 'User2',
         submenu = {
-            { id = 'handsup',   label = 'Mains en l\'air', icon = 'HandMetal'  },
-            { id = 'sit',       label = 'S\'asseoir',       icon = 'Armchair'   },
-            { id = 'lay',       label = 'S\'allonger',      icon = 'BedDouble'  },
-            { id = 'stopanim',  label = 'Arrêter anim',     icon = 'StopCircle' },
+            { id = 'handsup',  label = 'Mains en l\'air', icon = 'HandMetal'  },
+            { id = 'sit',      label = 'S\'asseoir',       icon = 'Armchair'   },
+            { id = 'lay',      label = 'S\'allonger',      icon = 'BedDouble'  },
+            { id = 'stopanim', label = 'Arrêter anim',     icon = 'StopCircle' },
         }
     })
 
     table.insert(items, {
-        id    = 'inventory',
-        label = 'Inventaire',
-        icon  = 'Backpack',
+        id          = 'inventory',
+        label       = 'Inventaire',
+        icon        = 'Backpack',
         description = 'Voir mes objets',
     })
 
-    table.insert(items, {
-        id    = 'phone',
-        label = 'Téléphone',
-        icon  = 'Phone',
-    })
+    table.insert(items, { id = 'phone', label = 'Téléphone', icon = 'Phone' })
 
-    -- Options admin
     if IsPlayerAdmin() then
-        table.insert(items, { id = '_div', divider = true })
+        table.insert(items, { id = '_div', divider = true, label = '' })
         table.insert(items, {
-            id    = 'admin_general',
-            label = '⚡ Options Admin',
-            icon  = 'ShieldAlert',
-            badge = GetAdminRole(),
+            id         = 'admin_general',
+            label      = '⚡ Options Admin',
+            icon       = 'ShieldAlert',
+            badge      = GetAdminRole(),
             badgeColor = '#f59e0b',
             submenu = {
-                { id = 'adm_coords_self', label = 'Mes coordonnées',    icon = 'MapPin', description = FormatCoords(coords) },
-                { id = 'adm_tp_waypoint',label = 'TP Waypoint',         icon = 'Navigation' },
-                { id = 'adm_noclip',     label = 'NoClip',              icon = 'Ghost'  },
-                { id = 'adm_god',        label = 'God Mode',            icon = 'Shield' },
-                { id = 'adm_invisible',  label = 'Invisible',           icon = 'EyeOff' },
-                { id = 'adm_heal_self',  label = 'Se soigner',          icon = 'Heart', color = '#10b981' },
-                { id = 'adm_armor_self', label = 'Armure',              icon = 'ShieldCheck', color = '#3b82f6' },
+                { id = 'adm_coords_self',  label = 'Mes coordonnées', icon = 'MapPin',    description = FormatCoords(coords) },
+                { id = 'adm_tp_waypoint',  label = 'TP Waypoint',     icon = 'Navigation' },
+                { id = 'adm_god',          label = 'God Mode',        icon = 'Shield'     },
+                { id = 'adm_invisible',    label = 'Invisible',       icon = 'EyeOff'     },
+                { id = 'adm_heal_self',    label = 'Se soigner',      icon = 'Heart',     color = '#10b981' },
+                { id = 'adm_armor_self',   label = 'Armure',          icon = 'ShieldCheck',color = '#3b82f6' },
             }
         })
     end

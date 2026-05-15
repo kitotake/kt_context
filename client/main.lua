@@ -7,8 +7,8 @@ local isMenuOpen = false
 -- ─── Ouverture ──────────────────────────────────────────────────────────────
 function OpenContextMenu(x, y, items, title, options)
     if isMenuOpen then
-        print("[KT Context] Menu déjà ouvert")
-        return
+        print("[KT Context] Menu déjà ouvert, fermeture forcée avant réouverture")
+        CloseContextMenu()
     end
 
     if not items or #items == 0 then
@@ -47,6 +47,25 @@ end
 function IsMenuOpen()
     return isMenuOpen
 end
+
+-- ─── Réinitialisation de sécurité au respawn / reload resource ───────────────
+-- Évite que isMenuOpen reste bloqué sur true si la NUI se recharge
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        if isMenuOpen then
+            isMenuOpen = false
+            SetNuiFocus(false, false)
+        end
+    end
+end)
+
+AddEventHandler('playerSpawned', function()
+    if isMenuOpen then
+        isMenuOpen = false
+        SetNuiFocus(false, false)
+        SendNUIMessage({ type = "closeContextMenu" })
+    end
+end)
 
 -- ─── Gestionnaires d'actions ─────────────────────────────────────────────────
 local actionHandlers = {
@@ -119,92 +138,84 @@ local actionHandlers = {
         if veh ~= 0 then for i = 0, 3 do RollDownWindow(veh, i) end end
     end,
 
-    -- Admin general
+    -- Admin général
     adm_coords_self = function()
         local coords = GetEntityCoords(PlayerPedId())
         ShowNotification(string.format("📍 X:%.2f Y:%.2f Z:%.2f", coords.x, coords.y, coords.z), "info")
     end,
 
     adm_tp_waypoint = function()
-        if IsPlayerAceAllowed(PlayerId(), "admin") then
-            local waypoint = GetFirstBlipInfoId(8)
-            if DoesBlipExist(waypoint) then
-                local coords = GetBlipInfoIdCoord(waypoint)
-                local ped    = PlayerPedId()
-                local veh    = GetVehiclePedIsIn(ped, false)
-                local found, gz = GetGroundZFor_3dCoord(coords.x, coords.y, 1000.0, false)
-                local z = found and gz or coords.z
-                if veh ~= 0 then
-                    SetEntityCoords(veh, coords.x, coords.y, z + 1.0)
-                else
-                    SetEntityCoords(ped, coords.x, coords.y, z + 1.0)
-                end
-                ShowNotification("📍 Téléporté au waypoint", "success")
+        if not IsPlayerAceAllowed(PlayerId(), "admin") then return end
+        local waypoint = GetFirstBlipInfoId(8)
+        if DoesBlipExist(waypoint) then
+            local coords = GetBlipInfoIdCoord(waypoint)
+            local ped    = PlayerPedId()
+            local veh    = GetVehiclePedIsIn(ped, false)
+            local found, gz = GetGroundZFor_3dCoord(coords.x, coords.y, 1000.0, false)
+            local z = found and gz or coords.z
+            if veh ~= 0 then
+                SetEntityCoords(veh, coords.x, coords.y, z + 1.0)
             else
-                ShowNotification("Aucun waypoint placé", "warning")
+                SetEntityCoords(ped, coords.x, coords.y, z + 1.0)
             end
+            ShowNotification("📍 Téléporté au waypoint", "success")
+        else
+            ShowNotification("Aucun waypoint placé", "warning")
         end
     end,
 
     adm_god = function()
-        if IsPlayerAceAllowed(PlayerId(), "admin") then
-            local ped = PlayerPedId()
-            local inv = GetPlayerInvincible(PlayerId())
-            SetEntityInvincible(ped, not inv)
-            ShowNotification(inv and "God Mode désactivé" or "God Mode activé", "info")
-        end
+        if not IsPlayerAceAllowed(PlayerId(), "admin") then return end
+        local ped = PlayerPedId()
+        local inv = GetPlayerInvincible(PlayerId())
+        SetEntityInvincible(ped, not inv)
+        ShowNotification(inv and "God Mode désactivé" or "God Mode activé", "info")
     end,
 
     adm_invisible = function()
-        if IsPlayerAceAllowed(PlayerId(), "admin") then
-            local ped = PlayerPedId()
-            local vis = IsEntityVisible(ped)
-            SetEntityVisible(ped, not vis, false)
-            ShowNotification(vis and "Invisible activé" or "Visible", "info")
-        end
+        if not IsPlayerAceAllowed(PlayerId(), "admin") then return end
+        local ped = PlayerPedId()
+        local vis = IsEntityVisible(ped)
+        SetEntityVisible(ped, not vis, false)
+        ShowNotification(vis and "Invisible activé" or "Visible", "info")
     end,
 
     adm_heal_self = function()
-        if IsPlayerAceAllowed(PlayerId(), "admin") then
-            local ped = PlayerPedId()
-            SetEntityHealth(ped, GetEntityMaxHealth(ped))
-            ShowNotification("❤️ Santé restaurée", "success")
-        end
+        if not IsPlayerAceAllowed(PlayerId(), "admin") then return end
+        local ped = PlayerPedId()
+        SetEntityHealth(ped, GetEntityMaxHealth(ped))
+        ShowNotification("❤️ Santé restaurée", "success")
     end,
 
     adm_armor_self = function()
-        if IsPlayerAceAllowed(PlayerId(), "admin") then
-            SetPedArmour(PlayerPedId(), 100)
-            ShowNotification("🛡️ Armure restaurée", "success")
-        end
+        if not IsPlayerAceAllowed(PlayerId(), "admin") then return end
+        SetPedArmour(PlayerPedId(), 100)
+        ShowNotification("🛡️ Armure restaurée", "success")
     end,
 
     adm_delete = function()
         ShowNotification("Action admin: supprimer entité", "warning")
-        -- Implémentation spécifique selon le contexte
     end,
 
     adm_repair = function()
-        if IsPlayerAceAllowed(PlayerId(), "admin") then
-            local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-            if veh ~= 0 then
-                SetVehicleFixed(veh)
-                SetVehicleDeformationFixed(veh)
-                SetVehicleUndriveable(veh, false)
-                SetVehicleEngineOn(veh, true, false)
-                SetVehicleDirtLevel(veh, 0.0)
-                ShowNotification("🔧 Véhicule réparé", "success")
-            end
+        if not IsPlayerAceAllowed(PlayerId(), "admin") then return end
+        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+        if veh ~= 0 then
+            SetVehicleFixed(veh)
+            SetVehicleDeformationFixed(veh)
+            SetVehicleUndriveable(veh, false)
+            SetVehicleEngineOn(veh, true, false)
+            SetVehicleDirtLevel(veh, 0.0)
+            ShowNotification("🔧 Véhicule réparé", "success")
         end
     end,
 
     adm_refuel = function()
-        if IsPlayerAceAllowed(PlayerId(), "admin") then
-            local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-            if veh ~= 0 then
-                SetVehicleFuelLevel(veh, 100.0)
-                ShowNotification("⛽ Réservoir rempli", "success")
-            end
+        if not IsPlayerAceAllowed(PlayerId(), "admin") then return end
+        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+        if veh ~= 0 then
+            SetVehicleFuelLevel(veh, 100.0)
+            ShowNotification("⛽ Réservoir rempli", "success")
         end
     end,
 
@@ -231,18 +242,28 @@ RegisterNUICallback("menuClosed", function(_, cb)
 end)
 
 -- ─── Désactivation contrôles quand menu ouvert ────────────────────────────────
+-- Cohérent avec cursor.lua pour éviter les doublons / oublis
+local BLOCKED_CONTROLS = {
+    1,    -- LookLeftRight
+    2,    -- LookUpDown
+    24,   -- Attack (clic gauche)
+    25,   -- Aim
+    142,  -- MeleeAttackAlternate
+    18,   -- Enter
+    322,  -- Backspace / ESC menu pause
+    106,  -- VehicleMouseControlOverride
+    68,   -- VehicleExit
+}
+
 Citizen.CreateThread(function()
     while true do
-        Wait(isMenuOpen and 0 or 500)
         if isMenuOpen then
-            DisableControlAction(0, 1,   true)
-            DisableControlAction(0, 2,   true)
-            DisableControlAction(0, 24,  true)
-            DisableControlAction(0, 25,  true)
-            DisableControlAction(0, 142, true)
-            DisableControlAction(0, 18,  true)
-            DisableControlAction(0, 322, true)
-            DisableControlAction(0, 106, true)
+            for _, ctrl in ipairs(BLOCKED_CONTROLS) do
+                DisableControlAction(0, ctrl, true)
+            end
+            Wait(0)
+        else
+            Wait(500)
         end
     end
 end)

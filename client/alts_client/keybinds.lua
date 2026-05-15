@@ -6,8 +6,14 @@ local KeyBinds = { registered = {}, active = true }
 
 function KeyBinds:Register(id, key, control, callback, description)
     if self.registered[id] then return false end
-    self.registered[id] = { id=id, key=key, control=control, callback=callback,
-                             description=description or '', enabled=true }
+    self.registered[id] = {
+        id          = id,
+        key         = key,
+        control     = control,
+        callback    = callback,
+        description = description or '',
+        enabled     = true,
+    }
     if RegisterKeyMapping then
         RegisterKeyMapping(id, description or id, 'keyboard', key)
     end
@@ -37,18 +43,18 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Enregistrement après 1 seconde
+-- Enregistrement après 1 seconde (laisser le temps aux autres scripts de charger)
 Citizen.CreateThread(function()
     Wait(1000)
 
     KeyBinds:Register('kt_menu_emotes', 'X', 73, function()
         local sw, sh = GetActiveScreenResolution()
         OpenContextMenu(sw/2, sh/2, {
-            { id='wave',  label='Saluer',    icon='Hand'       },
-            { id='sit',   label="S'asseoir", icon='Armchair'   },
-            { id='lay',   label="S'allonger",icon='BedDouble'  },
-            { id='dance', label='Danser',    icon='Music'      },
-            { id='stopanim', label='Arrêter animation', icon='StopCircle' },
+            { id='wave',     label='Saluer',             icon='Hand'       },
+            { id='sit',      label="S'asseoir",          icon='Armchair'   },
+            { id='lay',      label="S'allonger",         icon='BedDouble'  },
+            { id='dance',    label='Danser',             icon='Music'      },
+            { id='stopanim', label='Arrêter animation',  icon='StopCircle' },
         }, '😊 Émotes')
     end, 'Menu Émotes')
 
@@ -66,6 +72,6 @@ Citizen.CreateThread(function()
     print('[KT Context] Keybinds enregistrés')
 end)
 
-exports('RegisterKeybind',    function(id, key, ctrl, cb, desc) return KeyBinds:Register(id, key, ctrl, cb, desc) end)
-exports('ToggleKeybind',      function(id, state) KeyBinds:Toggle(id, state) end)
-exports('ToggleAllKeybinds',  function(state) KeyBinds:ToggleAll(state) end)
+exports('RegisterKeybind',   function(id, key, ctrl, cb, desc) return KeyBinds:Register(id, key, ctrl, cb, desc) end)
+exports('ToggleKeybind',     function(id, state) KeyBinds:Toggle(id, state) end)
+exports('ToggleAllKeybinds', function(state) KeyBinds:ToggleAll(state) end)

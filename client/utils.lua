@@ -90,8 +90,8 @@ end
 
 -- Obtenir le rôle admin
 function GetAdminRole()
-    if IsPlayerAceAllowed(PlayerId(), 'founder')    then return 'founder'    end
-    if IsPlayerAceAllowed(PlayerId(), 'admin')      then return 'admin'      end
-    if IsPlayerAceAllowed(PlayerId(), 'moderator')  then return 'moderator'  end
+    if IsPlayerAceAllowed(PlayerId(), 'founder')   then return 'founder'   end
+    if IsPlayerAceAllowed(PlayerId(), 'admin')     then return 'admin'     end
+    if IsPlayerAceAllowed(PlayerId(), 'moderator') then return 'moderator' end
     return nil
 end

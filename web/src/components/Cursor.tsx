@@ -7,9 +7,13 @@ interface Props {
 }
 
 const CURSOR_VARIANTS = {
-  hidden:  { opacity: 0, scale: 0.4 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.18, ease: [0.34, 1.56, 0.64, 1] } },
-  exit:    { opacity: 0, scale: 0.5, transition: { duration: 0.12 } },
+  hidden: { opacity: 0, scale: 0.4 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.18, ease: [0.34, 1.56, 0.64, 1] },
+  },
+  exit: { opacity: 0, scale: 0.5, transition: { duration: 0.12 } },
 }
 
 const Cursor: FC<Props> = ({ cursor }) => {

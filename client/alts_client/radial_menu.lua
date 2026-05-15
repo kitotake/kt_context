@@ -8,13 +8,13 @@ local RadialMenus = {
     main = {
         title = 'Menu Principal',
         items = {
-            { id = 'vehicle',  label = 'Véhicule',   icon = '🚗', submenu = 'vehicle'  },
-            { id = 'player',   label = 'Joueur',     icon = '👤', submenu = 'player'   },
-            { id = 'emotes',   label = 'Émotes',     icon = '😊', submenu = 'emotes'   },
-            { id = 'items',    label = 'Objets',     icon = '🎒', submenu = 'items'    },
-            { id = 'phone',    label = 'Téléphone',  icon = '📱',
+            { id = 'vehicle',  label = 'Véhicule',  icon = '🚗', submenu = 'vehicle'  },
+            { id = 'player',   label = 'Joueur',    icon = '👤', submenu = 'player'   },
+            { id = 'emotes',   label = 'Émotes',    icon = '😊', submenu = 'emotes'   },
+            { id = 'items',    label = 'Objets',    icon = '🎒', submenu = 'items'    },
+            { id = 'phone',    label = 'Téléphone', icon = '📱',
               action = function() TriggerEvent('kt_phone:open') end },
-            { id = 'admin',    label = 'Admin',      icon = '🛡️', submenu = 'admin',
+            { id = 'admin',    label = 'Admin',     icon = '🛡️', submenu = 'admin',
               condition = function() return IsPlayerAceAllowed(PlayerId(), 'admin') end },
         }
     },
@@ -35,25 +35,25 @@ local RadialMenus = {
     vehicle_doors = {
         title = 'Portes', parent = 'vehicle',
         items = {
-            { id = 'fl', label = 'Avant G',    icon = '🚪', action = function() ToggleVehicleDoor(0) end },
-            { id = 'fr', label = 'Avant D',    icon = '🚪', action = function() ToggleVehicleDoor(1) end },
-            { id = 'rl', label = 'Arrière G',  icon = '🚪', action = function() ToggleVehicleDoor(2) end },
-            { id = 'rr', label = 'Arrière D',  icon = '🚪', action = function() ToggleVehicleDoor(3) end },
-            { id = 'hood',  label = 'Capot',   icon = '🔩', action = function() ToggleVehicleDoor(4) end },
-            { id = 'trunk', label = 'Coffre',  icon = '📦', action = function() ToggleVehicleDoor(5) end },
+            { id = 'fl',    label = 'Avant G',   icon = '🚪', action = function() ToggleVehicleDoor(0) end },
+            { id = 'fr',    label = 'Avant D',   icon = '🚪', action = function() ToggleVehicleDoor(1) end },
+            { id = 'rl',    label = 'Arrière G', icon = '🚪', action = function() ToggleVehicleDoor(2) end },
+            { id = 'rr',    label = 'Arrière D', icon = '🚪', action = function() ToggleVehicleDoor(3) end },
+            { id = 'hood',  label = 'Capot',     icon = '🔩', action = function() ToggleVehicleDoor(4) end },
+            { id = 'trunk', label = 'Coffre',    icon = '📦', action = function() ToggleVehicleDoor(5) end },
         }
     },
 
     player = {
         title = 'Actions Joueur', parent = 'main',
         items = {
-            { id = 'handsup', label = 'Mains en l\'air', icon = '🙌',
+            { id = 'handsup',  label = 'Mains en l\'air', icon = '🙌',
               action = function() if QuickActions then QuickActions.Player.HandsUp() end end },
-            { id = 'sit',     label = 'S\'asseoir',      icon = '🪑',
+            { id = 'sit',      label = 'S\'asseoir',      icon = '🪑',
               action = function() if QuickActions then QuickActions.Player.SitGround() end end },
-            { id = 'lay',     label = 'S\'allonger',     icon = '😴',
+            { id = 'lay',      label = 'S\'allonger',     icon = '😴',
               action = function() if QuickActions then QuickActions.Player.LayDown() end end },
-            { id = 'stopanim',label = 'Arrêter anim',    icon = '⏹️',
+            { id = 'stopanim', label = 'Arrêter anim',    icon = '⏹️',
               action = function() if QuickActions then QuickActions.Player.StopAnim() end end },
         }
     },
@@ -61,16 +61,16 @@ local RadialMenus = {
     emotes = {
         title = 'Émotes', parent = 'main',
         items = {
-            { id = 'wave',  label = 'Saluer',     icon = '👋',
+            { id = 'wave',  label = 'Saluer',    icon = '👋',
               action = function()
                 local ped = PlayerPedId()
                 RequestAnimDict('gestures@m@standing@casual')
                 while not HasAnimDictLoaded('gestures@m@standing@casual') do Wait(10) end
                 TaskPlayAnim(ped, 'gestures@m@standing@casual', 'gesture_hello', 8.0, -8.0, -1, 0, 0, false, false, false)
               end },
-            { id = 'dance', label = 'Danser',     icon = '💃',
+            { id = 'dance', label = 'Danser',    icon = '💃',
               action = function() TaskStartScenarioInPlace(PlayerPedId(), 'WORLD_HUMAN_PARTYING', 0, true) end },
-            { id = 'clap',  label = 'Applaudir',  icon = '👏',
+            { id = 'clap',  label = 'Applaudir', icon = '👏',
               action = function()
                 local ped = PlayerPedId()
                 RequestAnimDict('anim@mp_player_intcelebrationfemale@slow_clap')
@@ -83,26 +83,26 @@ local RadialMenus = {
     items = {
         title = 'Objets Rapides', parent = 'main',
         items = {
-            { id = 'water',  label = 'Boire',  icon = '💧', action = function() ShowNotification('Vous buvez de l\'eau', 'info') end },
-            { id = 'eat',    label = 'Manger', icon = '🍔', action = function() ShowNotification('Vous mangez', 'info') end },
-            { id = 'medkit', label = 'Médical',icon = '🏥', action = function() ShowNotification('Kit médical utilisé', 'success') end },
+            { id = 'water',  label = 'Boire',   icon = '💧', action = function() ShowNotification('Vous buvez de l\'eau', 'info') end },
+            { id = 'eat',    label = 'Manger',  icon = '🍔', action = function() ShowNotification('Vous mangez', 'info') end },
+            { id = 'medkit', label = 'Médical', icon = '🏥', action = function() ShowNotification('Kit médical utilisé', 'success') end },
         }
     },
 
     admin = {
         title = 'Admin', parent = 'main',
         items = {
-            { id = 'heal',  label = 'Se soigner',     icon = '❤️',
+            { id = 'heal',  label = 'Se soigner',      icon = '❤️',
               action = function() if QuickActions then QuickActions.Admin.Heal() end end },
-            { id = 'armor', label = 'Armure',          icon = '🛡️',
+            { id = 'armor', label = 'Armure',           icon = '🛡️',
               action = function() if QuickActions then QuickActions.Admin.GiveArmor() end end },
-            { id = 'fix',   label = 'Réparer véhicule',icon = '🔧',
+            { id = 'fix',   label = 'Réparer véhicule', icon = '🔧',
               action = function() if QuickActions then QuickActions.Admin.RepairVehicle() end end },
             { id = 'dv',    label = 'Supprimer véhicule',icon='🗑️',
               action = function() if QuickActions then QuickActions.Admin.DeleteVehicle() end end },
-            { id = 'tpw',   label = 'TP Waypoint',    icon = '📍',
+            { id = 'tpw',   label = 'TP Waypoint',      icon = '📍',
               action = function() if QuickActions then QuickActions.Admin.TeleportToWaypoint() end end },
-            { id = 'god',   label = 'God Mode',        icon = '👻',
+            { id = 'god',   label = 'God Mode',          icon = '👻',
               action = function() if QuickActions then QuickActions.Admin.ToggleGodMode() end end },
         }
     },
@@ -120,7 +120,7 @@ function RadialMenu:Open(menuId)
         end
     end
 
-    self.isOpen     = true
+    self.isOpen      = true
     self.currentMenu = menuId
 
     SetNuiFocus(true, true)
@@ -190,4 +190,4 @@ RegisterKeyMapping('+radialmenu', 'Ouvrir le menu radial', 'keyboard', 'Z')
 exports('OpenRadialMenu',  function(menuId) RadialMenu:Open(menuId) end)
 exports('CloseRadialMenu', function() RadialMenu:Close() end)
 
-_G.RadialMenu = RadialMenu
+_G.RadialMenu = RadialMenu -- Expose global pour accès depuis d'autres ressources (ex: zones.lua)

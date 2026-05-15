@@ -6,48 +6,43 @@
 function OpenPlayerInteractionMenu(targetId, targetName)
     local sw, sh = GetActiveScreenResolution()
     local items  = {
-        { id='player_info',  label='Voir l\'identité',  icon='User',       description=targetName },
-        { id='player_trade', label='Proposer un échange',icon='Handshake'  },
+        { id='player_info',  label='Voir l\'identité',   icon='User',      description=targetName },
+        { id='player_trade', label='Proposer un échange', icon='Handshake' },
         {
             id='player_money', label='Transactions', icon='Banknote',
             submenu = {
-                { id='give_50',     label='Donner 50$',       icon='DollarSign' },
-                { id='give_100',    label='Donner 100$',      icon='DollarSign' },
-                { id='give_500',    label='Donner 500$',      icon='DollarSign' },
-                { id='give_custom', label='Montant libre…',   icon='PenLine'    },
+                { id='give_50',     label='Donner 50$',    icon='DollarSign' },
+                { id='give_100',    label='Donner 100$',   icon='DollarSign' },
+                { id='give_500',    label='Donner 500$',   icon='DollarSign' },
+                { id='give_custom', label='Montant libre…', icon='PenLine'   },
             }
         },
         {
             id='player_emotes', label='Interactions sociales', icon='Smile',
             submenu = {
-                { id='handshake',  label='Serrer la main', icon='Handshake' },
-                { id='hug',        label='Câlin',          icon='Heart'     },
-                { id='high_five',  label='Taper dans la main', icon='Star'  },
+                { id='handshake', label='Serrer la main',      icon='Handshake' },
+                { id='hug',       label='Câlin',               icon='Heart'     },
+                { id='high_five', label='Taper dans la main',  icon='Star'      },
             }
         },
-        -- Options admin conditionnelles
-        IsPlayerAceAllowed(PlayerId(), 'admin') and {
+    }
+
+    -- Options admin conditionnelles
+    if IsPlayerAceAllowed(PlayerId(), 'admin') then
+        table.insert(items, {
             id='player_admin', label='Actions Admin', icon='ShieldAlert',
             badge='admin', badgeColor='#f59e0b',
             submenu = {
-                { id='adm_tp_to',   label='Se TP vers lui',   icon='ArrowRight' },
-                { id='adm_tp_here', label='TP lui vers moi',  icon='ArrowLeft'  },
-                { id='adm_kick',    label='Expulser',         icon='UserX',    variant='danger' },
-                { id='adm_ban',     label='Bannir',           icon='ShieldOff',variant='danger' },
-                { id='adm_heal_t',  label='Soigner le joueur',icon='Heart',   variant='success' },
+                { id='adm_tp_to',   label='Se TP vers lui',    icon='ArrowRight' },
+                { id='adm_tp_here', label='TP lui vers moi',   icon='ArrowLeft'  },
+                { id='adm_kick',    label='Expulser',          icon='UserX',    variant='danger'  },
+                { id='adm_ban',     label='Bannir',            icon='ShieldOff',variant='danger'  },
+                { id='adm_heal_t',  label='Soigner le joueur', icon='Heart',    variant='success' },
             }
-        } or { id='_noop', label='', disabled=true },
-    }
-
-    -- Filtrer les nil
-    local clean = {}
-    for _, item in ipairs(items) do
-        if item and item.id ~= '_noop' then
-            table.insert(clean, item)
-        end
+        })
     end
 
-    OpenContextMenu(sw / 2, sh / 2, clean, '👤 ' .. targetName)
+    OpenContextMenu(sw / 2, sh / 2, items, '👤 ' .. targetName)
 end
 
 -- ── Exemple 2 : Menu véhicule complet ────────────────────────────────────────
@@ -90,12 +85,12 @@ function OpenAdvancedVehicleMenu()
         {
             id='veh_doors', label='Portes', icon='DoorOpen',
             submenu = {
-                { id='door_fl',   label='Avant gauche',   icon='SquareDot' },
-                { id='door_fr',   label='Avant droite',   icon='SquareDot' },
-                { id='door_rl',   label='Arrière gauche', icon='SquareDot' },
-                { id='door_rr',   label='Arrière droite', icon='SquareDot' },
-                { id='door_hood', label='Capot',          icon='SquareDot' },
-                { id='door_trunk',label='Coffre',         icon='SquareDot' },
+                { id='door_fl',    label='Avant gauche',   icon='SquareDot' },
+                { id='door_fr',    label='Avant droite',   icon='SquareDot' },
+                { id='door_rl',    label='Arrière gauche', icon='SquareDot' },
+                { id='door_rr',    label='Arrière droite', icon='SquareDot' },
+                { id='door_hood',  label='Capot',          icon='SquareDot' },
+                { id='door_trunk', label='Coffre',         icon='SquareDot' },
                 { id='_divd', divider=true, label='' },
                 { id='door_all_close', label='Tout fermer', icon='Lock' },
             }
@@ -116,10 +111,10 @@ function OpenAdvancedVehicleMenu()
             id='veh_admin', label='Admin Véhicule', icon='ShieldAlert',
             badge='admin', badgeColor='#f59e0b',
             submenu = {
-                { id='adm_repair',  label='Réparer complètement', icon='Wrench',  variant='success' },
-                { id='adm_refuel',  label='Remplir le réservoir', icon='Fuel',    variant='success' },
-                { id='adm_upgrade', label='Améliorer au max',     icon='Star'     },
-                { id='adm_delete',  label='Supprimer',            icon='Trash2',  variant='danger'  },
+                { id='adm_repair',  label='Réparer complètement',  icon='Wrench', variant='success' },
+                { id='adm_refuel',  label='Remplir le réservoir',  icon='Fuel',   variant='success' },
+                { id='adm_upgrade', label='Améliorer au max',      icon='Star'    },
+                { id='adm_delete',  label='Supprimer',             icon='Trash2', variant='danger'  },
             }
         })
     end
@@ -128,7 +123,7 @@ function OpenAdvancedVehicleMenu()
     OpenContextMenu(sw / 2, sh / 2, items, '🚗 Menu Véhicule')
 end
 
--- ── Exemple 3 : Zones interactives enregistrées ───────────────────────────────
+-- ── Exemple 3 : Zones interactives ───────────────────────────────────────────
 Citizen.CreateThread(function()
     Wait(2000)
 
@@ -142,9 +137,9 @@ Citizen.CreateThread(function()
         hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à l\'atelier',
         marker = { type=2, color={r=59,g=130,b=246,a=130}, size=vector3(3.5,3.5,0.3) },
         items  = {
-            { id='repair_veh',  label='Réparer le véhicule',   icon='Wrench'  },
-            { id='upgrade_veh', label='Améliorer le véhicule', icon='Star'    },
-            { id='change_color',label='Changer la couleur',    icon='Palette' },
+            { id='repair_veh',   label='Réparer le véhicule',   icon='Wrench'  },
+            { id='upgrade_veh',  label='Améliorer le véhicule', icon='Star'    },
+            { id='change_color', label='Changer la couleur',    icon='Palette' },
         },
     })
 
@@ -158,13 +153,13 @@ Citizen.CreateThread(function()
         hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à la banque',
         marker = { type=2, color={r=16,g=185,b=129,a=130}, size=vector3(4.0,4.0,0.3) },
         items  = {
-            { id='bank_deposit',  label='Déposer',     icon='ArrowUpFromLine'   },
-            { id='bank_withdraw', label='Retirer',     icon='ArrowDownToLine'   },
-            { id='bank_balance',  label='Voir solde',  icon='Wallet'            },
+            { id='bank_deposit',  label='Déposer',    icon='ArrowUpFromLine'  },
+            { id='bank_withdraw', label='Retirer',    icon='ArrowDownToLine'  },
+            { id='bank_balance',  label='Voir solde', icon='Wallet'           },
         },
     })
 
-    -- Zone police
+    -- Zone police (conditionnelle)
     RegisterMenuZone({
         id     = 'zone_police',
         coords = vector3(441.43, -982.14, 30.69),
@@ -175,17 +170,18 @@ Citizen.CreateThread(function()
         marker = { type=2, color={r=239,g=68,b=68,a=110}, size=vector3(5.0,5.0,0.3) },
         condition = function() return IsPlayerAceAllowed(PlayerId(), 'police') end,
         items  = {
-            { id='police_duty',   label='Prise de service',     icon='Shield'   },
-            { id='police_armory', label='Armurerie',            icon='Swords'   },
-            { id='police_garage', label='Garage',               icon='Car'      },
-            { id='police_jail',   label='Gérer les prisonniers',icon='Lock'     },
+            { id='police_duty',   label='Prise de service',      icon='Shield'  },
+            { id='police_armory', label='Armurerie',             icon='Swords'  },
+            { id='police_garage', label='Garage',                icon='Car'     },
+            { id='police_jail',   label='Gérer les prisonniers', icon='Lock'    },
         },
     })
 end)
 
 -- ── Commandes de test ─────────────────────────────────────────────────────────
-RegisterCommand('vmenu',   OpenAdvancedVehicleMenu, false)
-RegisterCommand('cmenu',   function()
+RegisterCommand('vmenu', OpenAdvancedVehicleMenu, false)
+
+RegisterCommand('cmenu', function()
     local sw, sh = GetActiveScreenResolution()
     OpenGeneralContextMenu(sw / 2, sh / 2)
 end, false)

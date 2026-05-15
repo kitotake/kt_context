@@ -16,7 +16,7 @@ export const sendNui = async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-  } catch (err) {
+  } catch {
     if (isEnvBrowser()) {
       console.debug(`[NUI mock] ${event}`, data)
     }

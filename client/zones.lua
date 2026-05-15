@@ -46,13 +46,12 @@ end
 -- ─── Thread de gestion des zones ─────────────────────────────────────────────
 Citizen.CreateThread(function()
     while true do
-        local sleep   = 500
-        local ped     = PlayerPedId()
-        local coords  = GetEntityCoords(ped)
-        local inZone  = nil
+        local sleep  = 500
+        local ped    = PlayerPedId()
+        local coords = GetEntityCoords(ped)
+        local inZone = nil
 
         for id, zone in pairs(registeredZones) do
-            -- Vérifier condition optionnelle
             if not zone.condition or zone.condition() then
                 local inside = false
 
@@ -61,7 +60,6 @@ Citizen.CreateThread(function()
                     inside = dist < zone.radius
 
                 elseif zone.shape == "box" then
-                    -- Vérification boîte orientée
                     inside = IsPointInAngledArea(
                         coords.x, coords.y, coords.z,
                         zone.coords.x - zone.size.x / 2,
@@ -83,7 +81,7 @@ Citizen.CreateThread(function()
                     if zone.marker then
                         local m = zone.marker
                         local c = m.color or { r=59, g=130, b=246, a=120 }
-                        local s = m.size   or vector3(zone.radius * 2, zone.radius * 2, 0.3)
+                        local s = m.size  or vector3(zone.radius * 2, zone.radius * 2, 0.3)
                         DrawMarker(
                             m.type or 2,
                             zone.coords.x, zone.coords.y, zone.coords.z + 0.02,
@@ -104,7 +102,6 @@ Citizen.CreateThread(function()
 
                     -- Déclenchement via E (control 38)
                     if IsControlJustReleased(0, 38) then
-                        -- Position au milieu de l'écran
                         local sw, sh = GetActiveScreenResolution()
                         OpenContextMenu(sw / 2, sh / 2, zone.items, zone.title or "Zone")
                     end
@@ -126,51 +123,6 @@ Citizen.CreateThread(function()
     end
 end)
 
--- ─── Export ──────────────────────────────────────────────────────────────────
+-- ─── Exports ─────────────────────────────────────────────────────────────────
 exports("RegisterMenuZone", RegisterMenuZone)
 exports("RemoveMenuZone",   RemoveMenuZone)
-
--- ─── Exemples de zones (commentés par défaut) ─────────────────────────────────
---[[
-Citizen.CreateThread(function()
-    Wait(2000)
-
-    RegisterMenuZone({
-        id     = "zone_mechanic",
-        coords = vector3(-352.66, -133.72, 38.56),
-        radius = 3.0,
-        shape  = "circle",
-        title  = "🔧 Atelier Mécanique",
-        hint   = "Appuyez sur ~INPUT_CONTEXT~ pour accéder à l'atelier",
-        marker = {
-            type  = 2,
-            color = { r=59, g=130, b=246, a=120 },
-            size  = vector3(3.0, 3.0, 0.3),
-        },
-        items = {
-            { id = "repair_vehicle",   label = "Réparer le véhicule",     icon = "Wrench"     },
-            { id = "upgrade_vehicle",  label = "Améliorer le véhicule",   icon = "Star"       },
-            { id = "change_color",     label = "Changer la couleur",      icon = "Palette"    },
-        },
-    })
-
-    RegisterMenuZone({
-        id     = "zone_bank",
-        coords = vector3(150.15, -1040.9, 29.37),
-        radius = 5.0,
-        shape  = "circle",
-        title  = "🏦 Banque",
-        hint   = "Appuyez sur ~INPUT_CONTEXT~ pour accéder à la banque",
-        marker = {
-            type  = 2,
-            color = { r=16, g=185, b=129, a=120 },
-            size  = vector3(4.0, 4.0, 0.3),
-        },
-        items = {
-            { id = "bank_deposit",  label = "Déposer de l'argent",   icon = "ArrowUpFromLine" },
-            { id = "bank_withdraw", label = "Retirer de l'argent",   icon = "ArrowDownToLine" },
-            { id = "bank_balance",  label = "Voir le solde",         icon = "Wallet"          },
-        },
-    })
-end)
-]]

@@ -30,9 +30,29 @@ const MENU_VARIANTS = {
 }
 
 const OVERLAY_VARIANTS = {
-  hidden:  { opacity: 0 },
+  hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { duration: 0.18 } },
-  exit:    { opacity: 0, transition: { duration: 0.14 } },
+  exit: { opacity: 0, transition: { duration: 0.14 } },
+}
+
+const MARGIN = 12
+
+/**
+ * Calcule la position corrigée pour que le menu reste dans l'écran.
+ * Appelé avant le premier paint pour éviter le flash de position.
+ */
+function clampPosition(
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): { x: number; y: number } {
+  const maxX = window.innerWidth - width - MARGIN
+  const maxY = window.innerHeight - height - MARGIN
+  return {
+    x: Math.max(MARGIN, Math.min(x, maxX)),
+    y: Math.max(MARGIN, Math.min(y, maxY)),
+  }
 }
 
 /* ── Composant ───────────────────────────────────────────────────────────── */
@@ -44,6 +64,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
   onClose,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null)
+  // Position après correction de débordement
+  const correctedPos = useRef({ x: position.x, y: position.y })
 
   /* Fermeture */
   const handleClose = useCallback(async () => {
@@ -61,25 +83,20 @@ const ContextMenu: FC<ContextMenuProps> = ({
     return () => window.removeEventListener('keydown', onKey)
   }, [visible, handleClose])
 
-  /* Repositionnement pour rester dans l'écran */
+  /**
+   * Repositionnement après le premier paint pour éviter le débordement écran.
+   * On applique les corrections via style direct pour ne pas provoquer
+   * un re-render React (évite un second flash).
+   */
   useEffect(() => {
     if (!visible || !menuRef.current) return
+
     const rect = menuRef.current.getBoundingClientRect()
-    const margin = 12
+    const { x, y } = clampPosition(position.x, position.y, rect.width, rect.height)
 
-    let x = position.x
-    let y = position.y
-
-    if (x + rect.width > window.innerWidth - margin)
-      x = window.innerWidth - rect.width - margin
-    if (y + rect.height > window.innerHeight - margin)
-      y = window.innerHeight - rect.height - margin
-
-    x = Math.max(margin, x)
-    y = Math.max(margin, y)
-
+    correctedPos.current = { x, y }
     menuRef.current.style.left = `${x}px`
-    menuRef.current.style.top  = `${y}px`
+    menuRef.current.style.top = `${y}px`
   }, [visible, position])
 
   return (
@@ -102,6 +119,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
             className="cm"
             role="menu"
             aria-label={title ?? 'Menu contextuel'}
+            /* Position initiale — sera corrigée dans useEffect si hors écran */
             style={{ left: position.x, top: position.y }}
             variants={MENU_VARIANTS}
             initial="hidden"
@@ -126,16 +144,16 @@ const ContextMenu: FC<ContextMenuProps> = ({
             <div className="cm__body">
               {items.length > 0 ? (
                 items.map(item =>
-                  item.divider
-                    ? <div key={item.id} className="cm-divider" />
-                    : (
-                      <MenuItemRow
-                        key={item.id}
-                        item={item}
-                        onClose={handleClose}
-                        depth={0}
-                      />
-                    )
+                  item.divider ? (
+                    <div key={item.id} className="cm-divider" />
+                  ) : (
+                    <MenuItemRow
+                      key={item.id}
+                      item={item}
+                      onClose={handleClose}
+                      depth={0}
+                    />
+                  )
                 )
               ) : (
                 <p className="cm__empty">Aucune option disponible</p>

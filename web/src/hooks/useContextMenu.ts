@@ -17,7 +17,14 @@ export function useContextMenu() {
   /** Ouvrir depuis JS (mode navigateur / test) */
   const openMenu = useCallback(
     (x: number, y: number, items: MenuItem[], title?: string) => {
-      setState({ visible: true, position: { x, y }, items, title, theme: 'dark', animate: true })
+      setState({
+        visible: true,
+        position: { x, y },
+        items,
+        title,
+        theme: 'dark',
+        animate: true,
+      })
     },
     []
   )
@@ -27,10 +34,17 @@ export function useContextMenu() {
     setState(prev => ({ ...prev, visible: false }))
   }, [])
 
-  /** Écouter les messages NUI depuis Lua */
+  /**
+   * Écouter le message NUI depuis Lua.
+   * useNuiEvent est stable grâce à la ref interne — pas besoin de useCallback ici.
+   */
   useNuiEvent<{
-    x: number; y: number; items: MenuItem[]; title?: string
-    theme?: 'dark' | 'light'; animate?: boolean
+    x: number
+    y: number
+    items: MenuItem[]
+    title?: string
+    theme?: 'dark' | 'light'
+    animate?: boolean
   }>('openContextMenu', data => {
     setState({
       visible: true,

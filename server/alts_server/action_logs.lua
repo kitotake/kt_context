@@ -17,7 +17,8 @@ function ActionLogs:Add(source, actionType, action, data)
     }
     table.insert(self.logs, 1, entry)
     if #self.logs > self.maxLogs then table.remove(self.logs) end
-    print(string.format("[KT Log] [%s] %s (%d) – %s: %s", entry.date, entry.playerName, source, actionType, action))
+    print(string.format("[KT Log] [%s] %s (%d) – %s: %s",
+        entry.date, entry.playerName, source, actionType, action))
     return entry
 end
 
@@ -45,4 +46,4 @@ AddEventHandler("kt_context:logAdminAction", function(action, targetId, reason)
     ActionLogs:Add(source, "admin", action, { targetId = targetId, reason = reason })
 end)
 
-_G.ActionLogs = ActionLogs
+_G.ActionLogs = ActionLogs -- Expose global pour accès depuis d'autres ressources (ex: admin.lua)

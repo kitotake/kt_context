@@ -278,9 +278,10 @@
 }
 
 // ── Sous-menu ─────────────────────────────────────────────────────────────────
+// Le positionnement gauche/droite est géré dynamiquement dans MenuItemRow.tsx
+// via le style inline `subStyle` (détection de débordement côté droit)
 .cm-sub {
   position: absolute;
-  left: calc(100% + 6px);
   top: -6px;
   min-width: $sub-min-w;
   max-width: $menu-max-w;
@@ -290,7 +291,7 @@
   overflow: hidden;
   z-index: 100;
 
-  // Connecteur visuel
+  // Connecteur visuel (barre bleue à gauche)
   &::before {
     content: '';
     position: absolute;
@@ -378,11 +379,5 @@
 
     &__label { font-size: 13px }
     &__desc  { font-size: 11px }
-  }
-
-  .cm-sub {
-    left: auto;
-    right: calc(100% + 6px);
-    top: -6px;
   }
 }

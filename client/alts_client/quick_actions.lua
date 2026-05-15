@@ -205,17 +205,17 @@ QuickActions.Admin = {
 }
 
 -- ── Commandes console ────────────────────────────────────────────────────────
-RegisterCommand('handsup',   QuickActions.Player.HandsUp,   false)
-RegisterCommand('sit',       QuickActions.Player.SitGround, false)
-RegisterCommand('lay',       QuickActions.Player.LayDown,   false)
-RegisterCommand('stopanim',  QuickActions.Player.StopAnim,  false)
-RegisterCommand('heal',      QuickActions.Admin.Heal,        false)
-RegisterCommand('armor',     QuickActions.Admin.GiveArmor,   false)
-RegisterCommand('fix',       QuickActions.Admin.RepairVehicle, false)
-RegisterCommand('dv',        QuickActions.Admin.DeleteVehicle, false)
-RegisterCommand('tpw',       QuickActions.Admin.TeleportToWaypoint, false)
-RegisterCommand('god',       QuickActions.Admin.ToggleGodMode, false)
-RegisterCommand('invis',     QuickActions.Admin.ToggleInvisible, false)
+RegisterCommand('handsup',  QuickActions.Player.HandsUp,             false)
+RegisterCommand('sit',      QuickActions.Player.SitGround,           false)
+RegisterCommand('lay',      QuickActions.Player.LayDown,             false)
+RegisterCommand('stopanim', QuickActions.Player.StopAnim,            false)
+RegisterCommand('heal',     QuickActions.Admin.Heal,                 false)
+RegisterCommand('armor',    QuickActions.Admin.GiveArmor,            false)
+RegisterCommand('fix',      QuickActions.Admin.RepairVehicle,        false)
+RegisterCommand('dv',       QuickActions.Admin.DeleteVehicle,        false)
+RegisterCommand('tpw',      QuickActions.Admin.TeleportToWaypoint,   false)
+RegisterCommand('god',      QuickActions.Admin.ToggleGodMode,        false)
+RegisterCommand('invis',    QuickActions.Admin.ToggleInvisible,      false)
 
 -- Expose global
 _G.QuickActions = QuickActions

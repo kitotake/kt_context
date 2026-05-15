@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type FC } from 'react'
+import { useState, useRef, useCallback, useEffect, type FC } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronRight } from 'lucide-react'
 import type { MenuItem } from '../types/menu.types'
@@ -12,19 +12,25 @@ interface Props {
 }
 
 const SUBMENU_VARIANTS = {
-  hidden:  { opacity: 0, x: -10, scale: 0.96 },
-  visible: { opacity: 1, x: 0,   scale: 1,    transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] } },
-  exit:    { opacity: 0, x: -6,  scale: 0.97,  transition: { duration: 0.12 } },
+  hidden: { opacity: 0, x: -10, scale: 0.96 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] },
+  },
+  exit: { opacity: 0, x: -6, scale: 0.97, transition: { duration: 0.12 } },
 }
 
 const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
   const [open, setOpen] = useState(false)
+  // Détermine si le sous-menu doit s'ouvrir à gauche (near right edge)
+  const [openLeft, setOpenLeft] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   // Classe variante CSS
-  const variantClass = item.variant && item.variant !== 'default'
-    ? `cm-item--${item.variant}`
-    : ''
+  const variantClass =
+    item.variant && item.variant !== 'default' ? `cm-item--${item.variant}` : ''
 
   // Couleur badge personnalisée
   const badgeStyle = item.badgeColor
@@ -38,6 +44,18 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
   // Couleur de la bordure gauche (custom override)
   const itemStyle = item.color ? { borderLeftColor: item.color } : undefined
 
+  /**
+   * Détecte si le sous-menu déborderait sur le bord droit de l'écran.
+   * Si oui, on l'ouvre vers la gauche.
+   */
+  useEffect(() => {
+    if (!open || !wrapperRef.current) return
+    const rect = wrapperRef.current.getBoundingClientRect()
+    const SUB_WIDTH = 260 // min-width du sous-menu
+    const wouldOverflow = rect.right + SUB_WIDTH + 12 > window.innerWidth
+    setOpenLeft(wouldOverflow)
+  }, [open])
+
   const handleClick = useCallback(async () => {
     if (item.disabled) return
 
@@ -48,7 +66,11 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
 
     // Action locale optionnelle
     if (item.action) {
-      try { await item.action() } catch (e) { console.error(e) }
+      try {
+        await item.action()
+      } catch (e) {
+        console.error('[MenuItemRow] action error:', e)
+      }
     }
 
     // Callback NUI → Lua
@@ -61,13 +83,17 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
   }
 
   const handleMouseLeave = (e: React.MouseEvent) => {
-    // Rester ouvert si la souris va vers le sous-menu
     if (item.submenu && item.submenu.length > 0) {
       const related = e.relatedTarget as Node | null
       if (wrapperRef.current?.contains(related)) return
       setOpen(false)
     }
   }
+
+  // Positionnement du sous-menu (gauche ou droite)
+  const subStyle: React.CSSProperties = openLeft
+    ? { right: 'calc(100% + 6px)', left: 'auto' }
+    : { left: 'calc(100% + 6px)' }
 
   return (
     <div
@@ -87,7 +113,9 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
         className={`cm-item ${variantClass} ${item.disabled ? 'cm-item--disabled' : ''}`}
         style={itemStyle}
         onClick={handleClick}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') handleClick()
+        }}
       >
         {/* Gauche */}
         <div className="cm-item__left">
@@ -129,22 +157,23 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
             <motion.div
               className="cm-sub"
               role="menu"
+              style={subStyle}
               variants={SUBMENU_VARIANTS}
               initial="hidden"
               animate="visible"
               exit="exit"
             >
               {item.submenu.map(sub =>
-                sub.divider
-                  ? <div key={sub.id} className="cm-divider" />
-                  : (
-                    <MenuItemRow
-                      key={sub.id}
-                      item={sub}
-                      onClose={onClose}
-                      depth={depth + 1}
-                    />
-                  )
+                sub.divider ? (
+                  <div key={sub.id} className="cm-divider" />
+                ) : (
+                  <MenuItemRow
+                    key={sub.id}
+                    item={sub}
+                    onClose={onClose}
+                    depth={depth + 1}
+                  />
+                )
               )}
             </motion.div>
           )}
