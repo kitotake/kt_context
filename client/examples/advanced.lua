@@ -6,7 +6,7 @@
 function OpenPlayerInteractionMenu(targetId, targetName)
     local sw, sh = GetActiveScreenResolution()
     local items  = {
-        { id='player_info',  label='Voir l\'identité',   icon='User',      description=targetName },
+        { id='player_info',  label='Voir l\'identité',    icon='User',      description=targetName },
         { id='player_trade', label='Proposer un échange', icon='Handshake' },
         {
             id='player_money', label='Transactions', icon='Banknote',
@@ -20,15 +20,15 @@ function OpenPlayerInteractionMenu(targetId, targetName)
         {
             id='player_emotes', label='Interactions sociales', icon='Smile',
             submenu = {
-                { id='handshake', label='Serrer la main',      icon='Handshake' },
-                { id='hug',       label='Câlin',               icon='Heart'     },
-                { id='high_five', label='Taper dans la main',  icon='Star'      },
+                { id='handshake', label='Serrer la main',     icon='Handshake' },
+                { id='hug',       label='Câlin',              icon='Heart'     },
+                { id='high_five', label='Taper dans la main', icon='Star'      },
             }
         },
     }
 
-    -- Options admin conditionnelles
-    if IsPlayerAceAllowed(PlayerId(), 'admin') then
+    -- Options admin conditionnelles (utilise IsPlayerAdmin() de sync.lua)
+    if IsPlayerAdmin() then
         table.insert(items, {
             id='player_admin', label='Actions Admin', icon='ShieldAlert',
             badge='admin', badgeColor='#f59e0b',
@@ -104,17 +104,17 @@ function OpenAdvancedVehicleMenu()
         },
     }
 
-    -- Options admin en bas si autorisé
-    if IsPlayerAceAllowed(PlayerId(), 'admin') then
+    -- Options admin
+    if IsPlayerAdmin() then
         table.insert(items, { id='_divadm', divider=true, label='' })
         table.insert(items, {
             id='veh_admin', label='Admin Véhicule', icon='ShieldAlert',
-            badge='admin', badgeColor='#f59e0b',
+            badge=GetAdminRole(), badgeColor='#f59e0b',
             submenu = {
-                { id='adm_repair',  label='Réparer complètement',  icon='Wrench', variant='success' },
-                { id='adm_refuel',  label='Remplir le réservoir',  icon='Fuel',   variant='success' },
-                { id='adm_upgrade', label='Améliorer au max',      icon='Star'    },
-                { id='adm_delete',  label='Supprimer',             icon='Trash2', variant='danger'  },
+                { id='adm_repair',  label='Réparer complètement', icon='Wrench', variant='success' },
+                { id='adm_refuel',  label='Remplir le réservoir', icon='Fuel',   variant='success' },
+                { id='adm_upgrade', label='Améliorer au max',     icon='Star'    },
+                { id='adm_delete',  label='Supprimer',            icon='Trash2', variant='danger'  },
             }
         })
     end
@@ -153,13 +153,13 @@ Citizen.CreateThread(function()
         hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à la banque',
         marker = { type=2, color={r=16,g=185,b=129,a=130}, size=vector3(4.0,4.0,0.3) },
         items  = {
-            { id='bank_deposit',  label='Déposer',    icon='ArrowUpFromLine'  },
-            { id='bank_withdraw', label='Retirer',    icon='ArrowDownToLine'  },
-            { id='bank_balance',  label='Voir solde', icon='Wallet'           },
+            { id='bank_deposit',  label='Déposer',    icon='ArrowUpFromLine' },
+            { id='bank_withdraw', label='Retirer',    icon='ArrowDownToLine' },
+            { id='bank_balance',  label='Voir solde', icon='Wallet'          },
         },
     })
 
-    -- Zone police (conditionnelle)
+    -- Zone police (conditionnelle — utilise IsPlayerAdmin ou ton propre check)
     RegisterMenuZone({
         id     = 'zone_police',
         coords = vector3(441.43, -982.14, 30.69),
@@ -168,12 +168,12 @@ Citizen.CreateThread(function()
         title  = '👮 Commissariat',
         hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour les services de police',
         marker = { type=2, color={r=239,g=68,b=68,a=110}, size=vector3(5.0,5.0,0.3) },
-        condition = function() return IsPlayerAceAllowed(PlayerId(), 'police') end,
+        -- Retire la condition ou mets la tienne (ex: vérifier un job)
         items  = {
-            { id='police_duty',   label='Prise de service',      icon='Shield'  },
-            { id='police_armory', label='Armurerie',             icon='Swords'  },
-            { id='police_garage', label='Garage',                icon='Car'     },
-            { id='police_jail',   label='Gérer les prisonniers', icon='Lock'    },
+            { id='police_duty',   label='Prise de service',      icon='Shield' },
+            { id='police_armory', label='Armurerie',             icon='Swords' },
+            { id='police_garage', label='Garage',                icon='Car'    },
+            { id='police_jail',   label='Gérer les prisonniers', icon='Lock'   },
         },
     })
 end)

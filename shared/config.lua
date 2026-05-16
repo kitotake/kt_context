@@ -9,14 +9,17 @@ Config.Locale = 'fr'
 Config.CursorKey     = 19
 Config.CursorKeyName = 'LALT'
 
+-- Sensibilité du curseur (1.0 = normal, 0.5 = lent, 2.0 = rapide)
+Config.CursorSensitivity = 1.0
+
 -- Distance max pour détecter les entités au clic
 Config.InteractionDistance = 5.0
 
 -- Profondeur max des sous-menus
 Config.MaxSubmenuDepth = 6
 
--- Rôles admin (ace permissions)
-Config.AdminAces = {
+-- Rôles admin (groupes DB)
+Config.AdminGroups = {
     'admin',
     'moderator',
     'founder',

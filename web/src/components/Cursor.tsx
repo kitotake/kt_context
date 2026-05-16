@@ -17,15 +17,26 @@ const CURSOR_VARIANTS = {
 }
 
 const Cursor: FC<Props> = ({ cursor }) => {
-  const x = `${cursor.x * 100}vw`
-  const y = `${cursor.y * 100}vh`
+  // Conversion normalisé (0..1) → pixels réels
+  // On utilise window.innerWidth/Height et non vw/vh pour éviter
+  // le glissement causé par la taille du curseur lui-même
+  const x = Math.round(cursor.x * window.innerWidth)
+  const y = Math.round(cursor.y * window.innerHeight)
 
   return (
     <AnimatePresence>
       {cursor.visible && (
         <motion.div
           className="kt-cursor"
-          style={{ left: x, top: y }}
+          style={{
+            position: 'fixed',
+            left: x,
+            top: y,
+            // translate fixe depuis le centre du curseur, indépendant de la position
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 9999,
+          }}
           variants={CURSOR_VARIANTS}
           initial="hidden"
           animate="visible"

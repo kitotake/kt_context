@@ -2,11 +2,13 @@
 -- SYSTÈME DE CURSEUR (ALT GAUCHE)
 -- =============================================
 
-local CURSOR_KEY   = Config and Config.CursorKey or 19
-local CURSOR_SPEED = 0.002
+local CURSOR_KEY     = Config and Config.CursorKey or 19
+local SENSITIVITY    = Config and Config.CursorSensitivity or 1.0
+local DEADZONE       = 0.01
 
-local cursorActive    = false
+local cursorActive     = false
 local cursorX, cursorY = 0.5, 0.5
+local lastTick         = 0
 
 function IsCursorActive()
     return cursorActive
@@ -24,7 +26,12 @@ Citizen.CreateThread(function()
                 cursorActive = true
                 SetNuiFocus(false, false)
                 SendNUIMessage({ type = 'cursorShow', data = { visible = true } })
+                lastTick = GetGameTimer()
             end
+
+            local now = GetGameTimer()
+            local dt  = math.min((now - lastTick) / 1000.0, 0.05)
+            lastTick  = now
 
             DisableControlAction(0, 1,   true)
             DisableControlAction(0, 2,   true)
@@ -37,8 +44,13 @@ Citizen.CreateThread(function()
 
             local dx = GetDisabledControlNormal(0, 239)
             local dy = GetDisabledControlNormal(0, 240)
-            cursorX = math.min(math.max(cursorX + dx * CURSOR_SPEED, 0.0), 1.0)
-            cursorY = math.min(math.max(cursorY + dy * CURSOR_SPEED, 0.0), 1.0)
+
+            if math.abs(dx) < DEADZONE then dx = 0.0 end
+            if math.abs(dy) < DEADZONE then dy = 0.0 end
+
+            local speed = 0.35 * SENSITIVITY
+            cursorX = math.min(math.max(cursorX + dx * speed * dt, 0.0), 1.0)
+            cursorY = math.min(math.max(cursorY + dy * speed * dt, 0.0), 1.0)
 
             SendNUIMessage({
                 type = 'cursorMove',
@@ -50,7 +62,8 @@ Citizen.CreateThread(function()
             end
 
         elseif cursorActive then
-            cursorActive = false
+            cursorActive     = false
+            cursorX, cursorY = 0.5, 0.5
             SendNUIMessage({ type = 'cursorShow', data = { visible = false } })
         end
 
@@ -60,7 +73,7 @@ end)
 
 -- ─── Gestion du clic curseur ────────────────────────────────────────────────
 function HandleCursorClick(nx, ny)
-    local sw, sh = GetActiveScreenResolution()
+    local sw, sh    = GetActiveScreenResolution()
     local camCoords = GetGameplayCamCoords()
     local camRot    = GetGameplayCamRot(2)
     local camFov    = GetGameplayCamFov()
@@ -72,9 +85,9 @@ function HandleCursorClick(nx, ny)
     local offsetV = (0.5 - ny) * 2 * math.tan(halfFovV)
 
     local fwd = RotationToDirection(camRot)
+    local rx  = math.rad(camRot.x)
+    local rz  = math.rad(camRot.z)
 
-    local rx = math.rad(camRot.x)
-    local rz = math.rad(camRot.z)
     local right = vector3(math.cos(rz), math.sin(rz), 0.0)
     local up    = vector3(
         -math.sin(rz) * math.sin(rx),
@@ -119,8 +132,7 @@ function OpenContextForEntity(entity, entityType, x, y)
     local items     = {}
 
     if entityType == 1 then
-        local isPlayer = IsPedAPlayer(entity)
-        if isPlayer then
+        if IsPedAPlayer(entity) then
             local playerName = GetPlayerName(GetPlayerFromPed(entity)) or 'Joueur'
             local serverId   = NetworkGetPlayerIndexFromPed(entity)
             items = BuildPlayerMenu(serverId, playerName, isAdmin)
@@ -149,8 +161,7 @@ function OpenContextForEntity(entity, entityType, x, y)
         })
     end
 
-    local title = GetEntityMenuTitle(entityType, entity)
-    OpenContextMenu(x, y, items, title)
+    OpenContextMenu(x, y, items, GetEntityMenuTitle(entityType, entity))
 end
 
 function GetEntityMenuTitle(entityType, entity)
@@ -167,23 +178,19 @@ end
 -- ─── Constructeurs de menus ───────────────────────────────────────────────────
 function BuildPlayerMenu(serverId, playerName, isAdmin)
     return {
-        { id = 'player_info',  label = "Voir l'identité",    icon = 'User',      description = playerName },
+        { id = 'player_info',  label = "Voir l'identité",     icon = 'User',      description = playerName },
         { id = 'player_trade', label = 'Proposer un échange', icon = 'Handshake' },
         {
-            id    = 'player_money',
-            label = 'Transactions',
-            icon  = 'Banknote',
+            id = 'player_money', label = 'Transactions', icon = 'Banknote',
             submenu = {
-                { id = 'give_50',     label = 'Donner 50$',    icon = 'DollarSign' },
-                { id = 'give_100',    label = 'Donner 100$',   icon = 'DollarSign' },
-                { id = 'give_500',    label = 'Donner 500$',   icon = 'DollarSign' },
-                { id = 'give_custom', label = 'Montant libre…', icon = 'PenLine'   },
+                { id = 'give_50',     label = 'Donner 50$',     icon = 'DollarSign' },
+                { id = 'give_100',    label = 'Donner 100$',    icon = 'DollarSign' },
+                { id = 'give_500',    label = 'Donner 500$',    icon = 'DollarSign' },
+                { id = 'give_custom', label = 'Montant libre…', icon = 'PenLine'    },
             }
         },
         {
-            id    = 'player_emotes',
-            label = 'Interactions sociales',
-            icon  = 'Smile',
+            id = 'player_emotes', label = 'Interactions sociales', icon = 'Smile',
             submenu = {
                 { id = 'wave',      label = 'Saluer',             icon = 'Hand'  },
                 { id = 'hug',       label = 'Câlin',              icon = 'Heart' },
@@ -195,9 +202,9 @@ end
 
 function BuildNpcMenu(entity, isAdmin)
     return {
-        { id = 'npc_talk',   label = 'Parler',  icon = 'MessageCircle' },
-        { id = 'npc_follow', label = 'Suivre',  icon = 'MapPin'        },
-        { id = 'npc_stop',   label = 'Arrêter', icon = 'StopCircle',   color = '#ef4444' },
+        { id = 'npc_talk',   label = 'Parler',  icon = 'MessageCircle'            },
+        { id = 'npc_follow', label = 'Suivre',  icon = 'MapPin'                   },
+        { id = 'npc_stop',   label = 'Arrêter', icon = 'StopCircle', color = '#ef4444' },
     }
 end
 
@@ -217,9 +224,7 @@ function BuildVehicleMenu(entity, locked, isAdmin)
             icon  = 'Zap',
         },
         {
-            id    = 'veh_doors',
-            label = 'Portes',
-            icon  = 'DoorOpen',
+            id = 'veh_doors', label = 'Portes', icon = 'DoorOpen',
             submenu = {
                 { id = 'door_fl',    label = 'Avant gauche',   icon = 'SquareDot' },
                 { id = 'door_fr',    label = 'Avant droite',   icon = 'SquareDot' },
@@ -230,9 +235,7 @@ function BuildVehicleMenu(entity, locked, isAdmin)
             }
         },
         {
-            id    = 'veh_windows',
-            label = 'Vitres',
-            icon  = 'Maximize2',
+            id = 'veh_windows', label = 'Vitres', icon = 'Maximize2',
             submenu = {
                 { id = 'win_up',   label = 'Monter toutes',    icon = 'ArrowUp'   },
                 { id = 'win_down', label = 'Descendre toutes', icon = 'ArrowDown' },
@@ -258,14 +261,19 @@ end
 
 function BuildAdminEntityMenu(entity, entityType)
     local items = {
-        { id = 'adm_coords', label = 'Coordonnées', icon = 'MapPin',
-          description = FormatCoords(GetEntityCoords(entity)), disabled = true },
-        { id = 'adm_delete', label = 'Supprimer',       icon = 'Trash2',  color = '#ef4444' },
-        { id = 'adm_freeze', label = 'Geler / Dégeler', icon = 'Pause'   },
+        {
+            id          = 'adm_coords',
+            label       = 'Coordonnées',
+            icon        = 'MapPin',
+            description = FormatCoords(GetEntityCoords(entity)),
+            disabled    = true,
+        },
+        { id = 'adm_delete', label = 'Supprimer',       icon = 'Trash2', color = '#ef4444' },
+        { id = 'adm_freeze', label = 'Geler / Dégeler', icon = 'Pause'                     },
     }
     if entityType == 2 then
-        table.insert(items, { id = 'adm_repair',  label = 'Réparer',            icon = 'Wrench', color = '#10b981' })
-        table.insert(items, { id = 'adm_refuel',  label = 'Remplir le réservoir', icon = 'Fuel'   })
+        table.insert(items, { id = 'adm_repair', label = 'Réparer',             icon = 'Wrench', color = '#10b981' })
+        table.insert(items, { id = 'adm_refuel', label = 'Remplir le réservoir', icon = 'Fuel'                    })
     end
     return items
 end
@@ -279,17 +287,15 @@ function OpenGeneralContextMenu(x, y)
     local veh, vehDist = GetClosestVehicle(coords)
     if veh ~= -1 and vehDist < Config.InteractionDistance then
         table.insert(items, {
-            id    = 'nearby_vehicle',
-            label = ('Véhicule (%.1fm)'):format(vehDist),
-            icon  = 'Car',
+            id      = 'nearby_vehicle',
+            label   = ('Véhicule (%.1fm)'):format(vehDist),
+            icon    = 'Car',
             submenu = BuildVehicleMenu(veh, GetVehicleDoorLockStatus(veh) ~= 1, IsPlayerAdmin()),
         })
     end
 
     table.insert(items, {
-        id    = 'player_actions',
-        label = 'Actions joueur',
-        icon  = 'User2',
+        id = 'player_actions', label = 'Actions joueur', icon = 'User2',
         submenu = {
             { id = 'handsup',  label = "Mains en l'air", icon = 'HandMetal'  },
             { id = 'sit',      label = "S'asseoir",       icon = 'Armchair'   },
@@ -300,7 +306,7 @@ function OpenGeneralContextMenu(x, y)
     })
 
     table.insert(items, { id = 'inventory', label = 'Inventaire', icon = 'Backpack', description = 'Voir mes objets' })
-    table.insert(items, { id = 'phone',     label = 'Téléphone',  icon = 'Phone' })
+    table.insert(items, { id = 'phone',     label = 'Téléphone',  icon = 'Phone'                                    })
 
     if IsPlayerAdmin() then
         local role = GetAdminRole()
@@ -312,15 +318,15 @@ function OpenGeneralContextMenu(x, y)
             badge      = role,
             badgeColor = '#f59e0b',
             submenu = {
-                { id = 'adm_coords_self', label = 'Mes coordonnées', icon = 'MapPin',
-                  description = FormatCoords(coords), disabled = true },
-                { id = 'adm_tp_waypoint', label = 'TP Waypoint',      icon = 'Navigation' },
-                { id = 'adm_god',         label = 'God Mode',         icon = 'Shield'     },
-                { id = 'adm_invisible',   label = 'Invisible',        icon = 'EyeOff'     },
-                { id = 'adm_heal_self',   label = 'Se soigner',       icon = 'Heart',   color = '#10b981' },
+                { id = 'adm_coords_self', label = 'Mes coordonnées',  icon = 'MapPin',
+                  description = FormatCoords(coords), disabled = true          },
+                { id = 'adm_tp_waypoint', label = 'TP Waypoint',      icon = 'Navigation'                      },
+                { id = 'adm_god',         label = 'God Mode',         icon = 'Shield'                          },
+                { id = 'adm_invisible',   label = 'Invisible',        icon = 'EyeOff'                          },
+                { id = 'adm_heal_self',   label = 'Se soigner',       icon = 'Heart',       color = '#10b981' },
                 { id = 'adm_armor_self',  label = 'Armure',           icon = 'ShieldCheck', color = '#3b82f6' },
-                { id = 'adm_delete',      label = 'Suppr. véhicule',  icon = 'Trash2',  color = '#ef4444' },
-                { id = 'adm_repair',      label = 'Réparer véhicule', icon = 'Wrench',  color = '#10b981' },
+                { id = 'adm_delete',      label = 'Suppr. véhicule',  icon = 'Trash2',      color = '#ef4444' },
+                { id = 'adm_repair',      label = 'Réparer véhicule', icon = 'Wrench',      color = '#10b981' },
             }
         })
     end
