@@ -1,11 +1,11 @@
 -- =============================================
--- UTILS – Doit être chargé EN PREMIER
+-- UTILS CLIENT
 -- =============================================
 
--- Notification visuelle FiveM
+-- Notification visuelle
 function ShowNotification(message, notifType)
-    notifType = notifType or "info"
-    SetNotificationTextEntry("STRING")
+    notifType = notifType or 'info'
+    SetNotificationTextEntry('STRING')
     AddTextComponentString(message)
     DrawNotification(false, true)
 end
@@ -59,7 +59,7 @@ function Draw3DText(coords, text)
         SetTextEdge(2, 0, 0, 0, 150)
         SetTextDropShadow()
         SetTextOutline()
-        SetTextEntry("STRING")
+        SetTextEntry('STRING')
         SetTextCentre(1)
         AddTextComponentString(text)
         DrawText(sx, sy)
@@ -81,17 +81,30 @@ end
 -- Vérification rôle admin
 function IsPlayerAdmin()
     for _, ace in pairs(Config.AdminAces) do
-        if IsPlayerAceAllowed(PlayerId(), ace) then
-            return true
-        end
+        if IsPlayerAceAllowed(PlayerId(), ace) then return true end
     end
     return false
 end
 
--- Obtenir le rôle admin
 function GetAdminRole()
     if IsPlayerAceAllowed(PlayerId(), 'founder')   then return 'founder'   end
     if IsPlayerAceAllowed(PlayerId(), 'admin')     then return 'admin'     end
     if IsPlayerAceAllowed(PlayerId(), 'moderator') then return 'moderator' end
     return nil
+end
+
+-- Format coordonnées
+function FormatCoords(coords)
+    return ('X:%.1f Y:%.1f Z:%.1f'):format(coords.x, coords.y, coords.z)
+end
+
+-- Direction caméra depuis rotation
+function RotationToDirection(rot)
+    local rx = math.rad(rot.x)
+    local rz = math.rad(rot.z)
+    return vector3(
+        -math.sin(rz) * math.abs(math.cos(rx)),
+         math.cos(rz) * math.abs(math.cos(rx)),
+         math.sin(rx)
+    )
 end

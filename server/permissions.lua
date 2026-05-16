@@ -1,98 +1,56 @@
+-- =============================================
+-- PERMISSIONS SERVEUR
+-- =============================================
 Permissions = {}
 
 local cache = {}
 
--- =============================================
--- GET IDENTIFIER
--- =============================================
 local function GetIdentifier(src)
     for i = 0, GetNumPlayerIdentifiers(src) - 1 do
         local id = GetPlayerIdentifier(src, i)
-        if id and string.find(id, "license:") then
+        if id and string.find(id, 'license:') then
             return id
         end
     end
     return nil
 end
 
--- =============================================
--- LOAD PERMISSION
--- =============================================
+-- Charger les permissions depuis la DB (ou fallback ace)
 function Permissions.Load(src)
     local identifier = GetIdentifier(src)
-    if not identifier then return "user" end
 
-    local result = MySQL.single.await(
-        'SELECT `group`, banned FROM users WHERE identifier = ?',
-        { identifier }
-    )
-
-    if not result then
-        MySQL.insert.await(
-            'INSERT INTO users (identifier, `group`) VALUES (?, ?)',
-            { identifier, "user" }
-        )
-
-        cache[src] = "user"
-        return "user"
+    -- Fallback ACE si pas de DB configurée
+    local group = 'user'
+    if IsPlayerAceAllowed(src, 'founder')   then group = 'founder'
+    elseif IsPlayerAceAllowed(src, 'admin') then group = 'admin'
+    elseif IsPlayerAceAllowed(src, 'moderator') then group = 'moderator'
     end
 
-    if result.banned == 1 then
-        DropPlayer(src, "Banned from server")
-        return nil
-    end
-
-    cache[src] = result.group or "user"
-    return cache[src]
+    cache[src] = group
+    TriggerClientEvent('permissions:client:set', src, group)
+    return group
 end
 
--- =============================================
--- GET
--- =============================================
 function Permissions.Get(src)
     return cache[src] or Permissions.Load(src)
 end
 
--- =============================================
--- SET GROUP
--- =============================================
-function Permissions.Set(src, group)
-    local identifier = GetIdentifier(src)
-    if not identifier then return end
-
-    cache[src] = group
-
-    MySQL.update.await(
-        'UPDATE users SET `group` = ? WHERE identifier = ?',
-        { group, identifier }
-    )
-end
-
--- =============================================
--- CHECK PERMISSION (HIERARCHY)
--- =============================================
 function Permissions.Has(src, required)
     local current = Permissions.Get(src)
-    if not current then return false end
-
-    local hierarchy = {
-        user = 1,
-        moderator = 2,
-        admin = 3,
-        founder = 4
-    }
-
+    local hierarchy = { user = 1, moderator = 2, admin = 3, founder = 4 }
     return (hierarchy[current] or 0) >= (hierarchy[required] or 0)
 end
 
--- =============================================
--- EVENTS
--- =============================================
+-- ─── Événements ──────────────────────────────────────────────────────────────
 AddEventHandler('playerJoining', function()
-    local src = source
-    Permissions.Load(src)
+    Permissions.Load(source)
 end)
 
 AddEventHandler('playerDropped', function()
     cache[source] = nil
+end)
+
+RegisterNetEvent('kt_context:requestPermissions')
+AddEventHandler('kt_context:requestPermissions', function()
+    Permissions.Load(source)
 end)

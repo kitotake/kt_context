@@ -4,7 +4,7 @@
 
 local QuickActions = {}
 
--- ── Véhicule ────────────────────────────────────────────────────────────────
+-- ── Véhicule ─────────────────────────────────────────────────────────────────
 QuickActions.Vehicle = {
 
     ToggleLock = function()
@@ -12,7 +12,7 @@ QuickActions.Vehicle = {
         if veh ~= 0 then
             local locked = GetVehicleDoorLockStatus(veh)
             SetVehicleDoorsLocked(veh, locked == 1 and 2 or 1)
-            ShowNotification(locked == 1 and '🔒 Verrouillé' or '🔓 Déverrouillé', 'info')
+            ShowNotification(locked == 1 and L('vehicle_locked') or L('vehicle_unlocked'), 'info')
             PlaySoundFrontend(-1, locked == 1 and 'CONFIRM_BEEP' or 'CANCEL', 'HUD_MINI_GAME_SOUNDSET', true)
             TriggerServerEvent('kt_context:logVehicleAction', 'lock_toggle', { locked = locked == 1 })
         else
@@ -48,22 +48,6 @@ QuickActions.Vehicle = {
         end
     end,
 
-    OpenAllWindows = function()
-        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-        if veh ~= 0 then
-            for i = 0, 3 do RollDownWindow(veh, i) end
-            ShowNotification('Vitres baissées', 'info')
-        end
-    end,
-
-    CloseAllWindows = function()
-        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-        if veh ~= 0 then
-            for i = 0, 3 do RollUpWindow(veh, i) end
-            ShowNotification('Vitres remontées', 'info')
-        end
-    end,
-
     ToggleLights = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
         if veh ~= 0 then
@@ -84,7 +68,6 @@ QuickActions.Player = {
         while not HasAnimDictLoaded('random@mugging3') do Wait(10) end
         if not IsEntityPlayingAnim(ped, 'random@mugging3', 'handsup_standing_base', 3) then
             TaskPlayAnim(ped, 'random@mugging3', 'handsup_standing_base', 8.0, -8.0, -1, 50, 0, false, false, false)
-            ShowNotification('🙌 Mains en l\'air', 'info')
         else
             ClearPedTasks(ped)
         end
@@ -94,14 +77,12 @@ QuickActions.Player = {
         local ped = PlayerPedId()
         if IsPedInAnyVehicle(ped, false) then return end
         TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_PICNIC', 0, true)
-        ShowNotification('Assis', 'info')
     end,
 
     LayDown = function()
         local ped = PlayerPedId()
         if IsPedInAnyVehicle(ped, false) then return end
         TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_SUNBATHE_BACK', 0, true)
-        ShowNotification('Allongé', 'info')
     end,
 
     StopAnim = function()
@@ -121,7 +102,7 @@ QuickActions.Player = {
 QuickActions.Admin = {
 
     Heal = function()
-        if not IsPlayerAceAllowed(PlayerId(), 'admin') then ShowNotification('Accès refusé', 'error') return end
+        if not IsPlayerAdmin() then ShowNotification('Accès refusé', 'error') return end
         local ped = PlayerPedId()
         SetEntityHealth(ped, GetEntityMaxHealth(ped))
         ShowNotification('❤️ Santé restaurée', 'success')
@@ -129,14 +110,14 @@ QuickActions.Admin = {
     end,
 
     GiveArmor = function()
-        if not IsPlayerAceAllowed(PlayerId(), 'admin') then ShowNotification('Accès refusé', 'error') return end
+        if not IsPlayerAdmin() then ShowNotification('Accès refusé', 'error') return end
         SetPedArmour(PlayerPedId(), 100)
         ShowNotification('🛡️ Armure restaurée', 'success')
         TriggerServerEvent('kt_context:logAdminAction', 'armor_self', nil, 'Self armor')
     end,
 
     RepairVehicle = function()
-        if not IsPlayerAceAllowed(PlayerId(), 'admin') then ShowNotification('Accès refusé', 'error') return end
+        if not IsPlayerAdmin() then ShowNotification('Accès refusé', 'error') return end
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
         if veh ~= 0 then
             SetVehicleFixed(veh)
@@ -152,7 +133,7 @@ QuickActions.Admin = {
     end,
 
     DeleteVehicle = function()
-        if not IsPlayerAceAllowed(PlayerId(), 'admin') then ShowNotification('Accès refusé', 'error') return end
+        if not IsPlayerAdmin() then ShowNotification('Accès refusé', 'error') return end
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
             SetEntityAsMissionEntity(veh, true, true)
@@ -165,7 +146,7 @@ QuickActions.Admin = {
     end,
 
     TeleportToWaypoint = function()
-        if not IsPlayerAceAllowed(PlayerId(), 'admin') then ShowNotification('Accès refusé', 'error') return end
+        if not IsPlayerAdmin() then ShowNotification('Accès refusé', 'error') return end
         local wp = GetFirstBlipInfoId(8)
         if DoesBlipExist(wp) then
             local coords = GetBlipInfoIdCoord(wp)
@@ -186,7 +167,7 @@ QuickActions.Admin = {
     end,
 
     ToggleGodMode = function()
-        if not IsPlayerAceAllowed(PlayerId(), 'admin') then ShowNotification('Accès refusé', 'error') return end
+        if not IsPlayerAdmin() then ShowNotification('Accès refusé', 'error') return end
         local ped = PlayerPedId()
         local inv = GetPlayerInvincible(PlayerId())
         SetEntityInvincible(ped, not inv)
@@ -195,7 +176,7 @@ QuickActions.Admin = {
     end,
 
     ToggleInvisible = function()
-        if not IsPlayerAceAllowed(PlayerId(), 'admin') then ShowNotification('Accès refusé', 'error') return end
+        if not IsPlayerAdmin() then ShowNotification('Accès refusé', 'error') return end
         local ped = PlayerPedId()
         local vis = IsEntityVisible(ped)
         SetEntityVisible(ped, not vis, false)
@@ -204,18 +185,17 @@ QuickActions.Admin = {
     end,
 }
 
--- ── Commandes console ────────────────────────────────────────────────────────
-RegisterCommand('handsup',  QuickActions.Player.HandsUp,             false)
-RegisterCommand('sit',      QuickActions.Player.SitGround,           false)
-RegisterCommand('lay',      QuickActions.Player.LayDown,             false)
-RegisterCommand('stopanim', QuickActions.Player.StopAnim,            false)
-RegisterCommand('heal',     QuickActions.Admin.Heal,                 false)
-RegisterCommand('armor',    QuickActions.Admin.GiveArmor,            false)
-RegisterCommand('fix',      QuickActions.Admin.RepairVehicle,        false)
-RegisterCommand('dv',       QuickActions.Admin.DeleteVehicle,        false)
-RegisterCommand('tpw',      QuickActions.Admin.TeleportToWaypoint,   false)
-RegisterCommand('god',      QuickActions.Admin.ToggleGodMode,        false)
-RegisterCommand('invis',    QuickActions.Admin.ToggleInvisible,      false)
+-- ── Commandes console ─────────────────────────────────────────────────────────
+RegisterCommand('handsup',  QuickActions.Player.HandsUp,           false)
+RegisterCommand('sit',      QuickActions.Player.SitGround,         false)
+RegisterCommand('lay',      QuickActions.Player.LayDown,           false)
+RegisterCommand('stopanim', QuickActions.Player.StopAnim,          false)
+RegisterCommand('heal',     QuickActions.Admin.Heal,               false)
+RegisterCommand('armor',    QuickActions.Admin.GiveArmor,          false)
+RegisterCommand('fix',      QuickActions.Admin.RepairVehicle,      false)
+RegisterCommand('dv',       QuickActions.Admin.DeleteVehicle,      false)
+RegisterCommand('tpw',      QuickActions.Admin.TeleportToWaypoint, false)
+RegisterCommand('god',      QuickActions.Admin.ToggleGodMode,      false)
+RegisterCommand('invis',    QuickActions.Admin.ToggleInvisible,    false)
 
--- Expose global
 _G.QuickActions = QuickActions

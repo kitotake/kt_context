@@ -1,75 +1,55 @@
+-- =============================================
+-- ADMIN SERVEUR
+-- =============================================
 Admin = {}
 
--- =============================================
--- Admin Roles
--- =============================================
-
 Admin.Roles = {
-    founder = 'group.founder',
-    admin = 'group.admin',
-    moderator = 'group.moderator'
+    founder   = 'group.founder',
+    admin     = 'group.admin',
+    moderator = 'group.moderator',
 }
-
--- =============================================
--- Get Player Role
--- =============================================
 
 function Admin.GetPlayerRole(source)
     for role, ace in pairs(Admin.Roles) do
-        if IsPlayerAceAllowed(source, ace) then
-            return role
-        end
+        if IsPlayerAceAllowed(source, ace) then return role end
     end
-
     return nil
 end
 
--- =============================================
--- Is Player Admin
--- =============================================
-
-function Admin.IsPlayerAdmin(source)
+function Admin.IsAdmin(source)
     return Admin.GetPlayerRole(source) ~= nil
 end
 
--- =============================================
--- Callback Event
--- =============================================
-
-RegisterNetEvent('admin:server:requestPermissions', function()
+-- ─── Actions admin ────────────────────────────────────────────────────────────
+RegisterServerEvent('kt_context:admin:kick')
+AddEventHandler('kt_context:admin:kick', function(targetId, reason)
     local source = source
-
-    local isAdmin = Admin.IsPlayerAdmin(source)
-    local role = Admin.GetPlayerRole(source)
-
-    TriggerClientEvent('admin:client:receivePermissions', source, {
-        isAdmin = isAdmin,
-        role = role
-    })
+    if not Admin.IsAdmin(source) then return end
+    if not GetPlayerName(targetId) then return end
+    DropPlayer(targetId, reason or 'Expulsé par un administrateur')
+    TriggerClientEvent('kt_context:notify', source, ('Joueur %d expulsé'):format(targetId), 'success')
+    ActionLogs:Add(source, 'admin', 'kick', { target = targetId, reason = reason })
 end)
 
--- =============================================
--- Debug Command
--- =============================================
+RegisterServerEvent('kt_context:admin:freeze')
+AddEventHandler('kt_context:admin:freeze', function(targetId)
+    local source = source
+    if not Admin.IsAdmin(source) then return end
+    TriggerClientEvent('kt_context:admin:freezeClient', targetId, true)
+    ActionLogs:Add(source, 'admin', 'freeze', { target = targetId })
+end)
 
+RegisterServerEvent('kt_context:admin:spectate')
+AddEventHandler('kt_context:admin:spectate', function(targetId)
+    local source = source
+    if not Admin.IsAdmin(source) then return end
+    TriggerClientEvent('kt_context:admin:spectateClient', source, targetId)
+    ActionLogs:Add(source, 'admin', 'spectate', { target = targetId })
+end)
+
+-- ─── Debug command ────────────────────────────────────────────────────────────
 RegisterCommand('checkadmin', function(source)
-    local isAdmin = Admin.IsPlayerAdmin(source)
-    local role = Admin.GetPlayerRole(source) or 'none'
-
-    print(('[ADMIN] %s | Admin: %s | Role: %s')
-        :format(GetPlayerName(source), tostring(isAdmin), role))
-
-    TriggerClientEvent('chat:addMessage', source, {
-        args = {
-            '^2ADMIN',
-            ('Status: %s | Role: %s')
-                :format(tostring(isAdmin), role)
-        }
-    })
+    local role = Admin.GetPlayerRole(source) or 'user'
+    print(('[ADMIN] %s | Role: %s'):format(GetPlayerName(source), role))
+    TriggerClientEvent('kt_context:notify', source, ('Rôle: %s'):format(role), 'info')
 end, false)
-RegisterCommand('checkgroup', function(source)
-    local group = Permissions.Get(source)
-
-    print(('[PERMS] %s = %s')
-        :format(GetPlayerName(source), group))
-end)

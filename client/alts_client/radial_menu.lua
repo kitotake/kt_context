@@ -1,5 +1,5 @@
 -- =============================================
--- MENU RADIAL (optionnel, touche Z)
+-- MENU RADIAL (touche Z)
 -- =============================================
 
 local RadialMenu = { isOpen = false, currentMenu = nil }
@@ -11,11 +11,10 @@ local RadialMenus = {
             { id = 'vehicle',  label = 'Véhicule',  icon = '🚗', submenu = 'vehicle'  },
             { id = 'player',   label = 'Joueur',    icon = '👤', submenu = 'player'   },
             { id = 'emotes',   label = 'Émotes',    icon = '😊', submenu = 'emotes'   },
-            { id = 'items',    label = 'Objets',    icon = '🎒', submenu = 'items'    },
             { id = 'phone',    label = 'Téléphone', icon = '📱',
               action = function() TriggerEvent('kt_phone:open') end },
             { id = 'admin',    label = 'Admin',     icon = '🛡️', submenu = 'admin',
-              condition = function() return IsPlayerAceAllowed(PlayerId(), 'admin') end },
+              condition = function() return IsPlayerAdmin() end },
         }
     },
 
@@ -26,9 +25,9 @@ local RadialMenus = {
               action = function() if QuickActions then QuickActions.Vehicle.ToggleLock() end end },
             { id = 'engine', label = 'Moteur',      icon = '🔌',
               action = function() if QuickActions then QuickActions.Vehicle.ToggleEngine() end end },
-            { id = 'doors',  label = 'Portes',      icon = '🚪', submenu = 'vehicle_doors' },
             { id = 'lights', label = 'Lumières',    icon = '💡',
               action = function() if QuickActions then QuickActions.Vehicle.ToggleLights() end end },
+            { id = 'doors',  label = 'Portes',      icon = '🚪', submenu = 'vehicle_doors' },
         }
     },
 
@@ -47,13 +46,13 @@ local RadialMenus = {
     player = {
         title = 'Actions Joueur', parent = 'main',
         items = {
-            { id = 'handsup',  label = 'Mains en l\'air', icon = '🙌',
+            { id = 'handsup',  label = "Mains en l'air", icon = '🙌',
               action = function() if QuickActions then QuickActions.Player.HandsUp() end end },
-            { id = 'sit',      label = 'S\'asseoir',      icon = '🪑',
+            { id = 'sit',      label = "S'asseoir",      icon = '🪑',
               action = function() if QuickActions then QuickActions.Player.SitGround() end end },
-            { id = 'lay',      label = 'S\'allonger',     icon = '😴',
+            { id = 'lay',      label = "S'allonger",     icon = '😴',
               action = function() if QuickActions then QuickActions.Player.LayDown() end end },
-            { id = 'stopanim', label = 'Arrêter anim',    icon = '⏹️',
+            { id = 'stopanim', label = 'Arrêter anim',   icon = '⏹️',
               action = function() if QuickActions then QuickActions.Player.StopAnim() end end },
         }
     },
@@ -80,29 +79,20 @@ local RadialMenus = {
         }
     },
 
-    items = {
-        title = 'Objets Rapides', parent = 'main',
-        items = {
-            { id = 'water',  label = 'Boire',   icon = '💧', action = function() ShowNotification('Vous buvez de l\'eau', 'info') end },
-            { id = 'eat',    label = 'Manger',  icon = '🍔', action = function() ShowNotification('Vous mangez', 'info') end },
-            { id = 'medkit', label = 'Médical', icon = '🏥', action = function() ShowNotification('Kit médical utilisé', 'success') end },
-        }
-    },
-
     admin = {
         title = 'Admin', parent = 'main',
         items = {
-            { id = 'heal',  label = 'Se soigner',      icon = '❤️',
+            { id = 'heal',  label = 'Se soigner',       icon = '❤️',
               action = function() if QuickActions then QuickActions.Admin.Heal() end end },
-            { id = 'armor', label = 'Armure',           icon = '🛡️',
+            { id = 'armor', label = 'Armure',            icon = '🛡️',
               action = function() if QuickActions then QuickActions.Admin.GiveArmor() end end },
-            { id = 'fix',   label = 'Réparer véhicule', icon = '🔧',
+            { id = 'fix',   label = 'Réparer véhicule',  icon = '🔧',
               action = function() if QuickActions then QuickActions.Admin.RepairVehicle() end end },
-            { id = 'dv',    label = 'Supprimer véhicule',icon='🗑️',
+            { id = 'dv',    label = 'Suppr. véhicule',   icon = '🗑️',
               action = function() if QuickActions then QuickActions.Admin.DeleteVehicle() end end },
-            { id = 'tpw',   label = 'TP Waypoint',      icon = '📍',
+            { id = 'tpw',   label = 'TP Waypoint',       icon = '📍',
               action = function() if QuickActions then QuickActions.Admin.TeleportToWaypoint() end end },
-            { id = 'god',   label = 'God Mode',          icon = '👻',
+            { id = 'god',   label = 'God Mode',           icon = '👻',
               action = function() if QuickActions then QuickActions.Admin.ToggleGodMode() end end },
         }
     },
@@ -176,7 +166,7 @@ RegisterNUICallback('radialMenuAction', function(data, cb)
     cb('ok')
 end)
 
--- Commande + keybind (Z)
+-- Commande + keybind Z
 RegisterCommand('+radialmenu', function()
     if not RadialMenu.isOpen then RadialMenu:Open('main') end
 end, false)
@@ -190,4 +180,4 @@ RegisterKeyMapping('+radialmenu', 'Ouvrir le menu radial', 'keyboard', 'Z')
 exports('OpenRadialMenu',  function(menuId) RadialMenu:Open(menuId) end)
 exports('CloseRadialMenu', function() RadialMenu:Close() end)
 
-_G.RadialMenu = RadialMenu -- Expose global pour accès depuis d'autres ressources (ex: zones.lua)
+_G.RadialMenu = RadialMenu

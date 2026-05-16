@@ -3,18 +3,10 @@ import type { CursorState } from '../types/menu.types'
 import { useNuiEvent } from './useNuiEvent'
 
 export function useCursor() {
-  const [cursor, setCursor] = useState<CursorState>({
-    visible: false,
-    x: 0.5,
-    y: 0.5,
-  })
+  const [cursor, setCursor] = useState<CursorState>({ visible: false, x: 0.5, y: 0.5 })
 
   useNuiEvent<{ visible: boolean }>('cursorShow', data => {
-    setCursor(prev => ({
-      ...prev,
-      visible: data.visible,
-    }))
-
+    setCursor(prev => ({ ...prev, visible: data.visible }))
     document.body.style.visibility = data.visible ? 'visible' : 'hidden'
   })
 
@@ -31,9 +23,5 @@ export function useCursor() {
     document.body.style.visibility = 'hidden'
   }, [])
 
-  const reset = useCallback(() => {
-    setCursor({ visible: false, x: 0.5, y: 0.5 })
-  }, [])
-
-  return { cursor, hide, reset }
+  return { cursor, hide }
 }

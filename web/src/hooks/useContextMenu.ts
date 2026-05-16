@@ -14,37 +14,20 @@ const INITIAL: ContextMenuState = {
 export function useContextMenu() {
   const [state, setState] = useState<ContextMenuState>(INITIAL)
 
-  /** Ouvrir depuis JS (mode navigateur / test) */
   const openMenu = useCallback(
     (x: number, y: number, items: MenuItem[], title?: string) => {
-      setState({
-        visible: true,
-        position: { x, y },
-        items,
-        title,
-        theme: 'dark',
-        animate: true,
-      })
+      setState({ visible: true, position: { x, y }, items, title, theme: 'dark', animate: true })
     },
     []
   )
 
-  /** Fermer */
   const closeMenu = useCallback(() => {
     setState(prev => ({ ...prev, visible: false }))
   }, [])
 
-  /**
-   * Écouter le message NUI depuis Lua.
-   * useNuiEvent est stable grâce à la ref interne — pas besoin de useCallback ici.
-   */
   useNuiEvent<{
-    x: number
-    y: number
-    items: MenuItem[]
-    title?: string
-    theme?: 'dark' | 'light'
-    animate?: boolean
+    x: number; y: number; items: MenuItem[]
+    title?: string; theme?: 'dark' | 'light'; animate?: boolean
   }>('openContextMenu', data => {
     setState({
       visible: true,
@@ -54,13 +37,10 @@ export function useContextMenu() {
       theme: data.theme ?? 'dark',
       animate: data.animate ?? true,
     })
-    // Rendre le body visible (FiveM le masque par défaut)
     document.body.style.visibility = 'visible'
   })
 
-  useNuiEvent('closeContextMenu', () => {
-    closeMenu()
-  })
+  useNuiEvent('closeContextMenu', () => closeMenu())
 
   return { state, openMenu, closeMenu }
 }
