@@ -130,7 +130,7 @@ Citizen.CreateThread(function()
     -- Zone mécanique
     RegisterMenuZone({
         id     = 'zone_meca',
-        coords = vector3(-352.66, -133.72, 38.56),
+        coords = vector3( ),
         radius = 3.5,
         shape  = 'circle',
         title  = '🔧 Atelier Mécanique',

@@ -1,4 +1,4 @@
-import { type FC } from 'react'
+import { type FC, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { CursorState } from '../types/menu.types'
 
@@ -17,11 +17,26 @@ const CURSOR_VARIANTS = {
 }
 
 const Cursor: FC<Props> = ({ cursor }) => {
-  // Conversion normalisé (0..1) → pixels réels
-  // On utilise window.innerWidth/Height et non vw/vh pour éviter
-  // le glissement causé par la taille du curseur lui-même
-  const x = Math.round(cursor.x * window.innerWidth)
-  const y = Math.round(cursor.y * window.innerHeight)
+  const [screen, setScreen] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  })
+
+  // Handle resize propre
+  useEffect(() => {
+    const onResize = () => {
+      setScreen({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    }
+
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const x = cursor.x * screen.width
+  const y = cursor.y * screen.height
 
   return (
     <AnimatePresence>
@@ -32,7 +47,6 @@ const Cursor: FC<Props> = ({ cursor }) => {
             position: 'fixed',
             left: x,
             top: y,
-            // translate fixe depuis le centre du curseur, indépendant de la position
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
             zIndex: 9999,
@@ -43,7 +57,9 @@ const Cursor: FC<Props> = ({ cursor }) => {
           exit="exit"
         >
           <div className="kt-cursor__ring" />
-          <span className="kt-cursor__hint">Clic gauche pour interagir</span>
+          <span className="kt-cursor__hint">
+            Clic gauche pour interagir
+          </span>
         </motion.div>
       )}
     </AnimatePresence>

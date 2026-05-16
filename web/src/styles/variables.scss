@@ -45,8 +45,6 @@ $radius-xs:  4px;
 // ── Mixins ───────────────────────────────────────────────────────────────────
 @mixin glass {
   background: $bg-menu;
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border: 1px solid $border-subtle;
 }
 

@@ -6,7 +6,6 @@
   position: fixed;
   inset: 0;
   background: $bg-overlay;
-  backdrop-filter: blur(2px);
   z-index: 9000;
   pointer-events: all;
   cursor: default;

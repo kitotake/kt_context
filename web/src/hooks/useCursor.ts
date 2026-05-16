@@ -1,13 +1,19 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { CursorState } from '../types/menu.types'
 import { useNuiEvent } from './useNuiEvent'
 
 export function useCursor() {
-  const [cursor, setCursor] = useState<CursorState>({ visible: false, x: 0.5, y: 0.5 })
+  const [cursor, setCursor] = useState<CursorState>({
+    visible: false,
+    x: 0.5,
+    y: 0.5,
+  })
 
   useNuiEvent<{ visible: boolean }>('cursorShow', data => {
-    setCursor(prev => ({ ...prev, visible: data.visible }))
-    document.body.style.visibility = data.visible ? 'visible' : 'hidden'
+    setCursor(prev => ({
+      ...prev,
+      visible: data.visible,
+    }))
   })
 
   useNuiEvent<{ x: number; y: number }>('cursorMove', data => {
@@ -18,9 +24,13 @@ export function useCursor() {
     }))
   })
 
+  // Side effect propre (évite mutation directe dans les handlers)
+  useEffect(() => {
+    document.body.classList.toggle('cursor-hidden', !cursor.visible)
+  }, [cursor.visible])
+
   const hide = useCallback(() => {
     setCursor(prev => ({ ...prev, visible: false }))
-    document.body.style.visibility = 'hidden'
   }, [])
 
   return { cursor, hide }
