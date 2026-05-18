@@ -5,57 +5,44 @@ import type { ContextMenuProps } from '../types/menu.types'
 import MenuItemRow from './MenuItemRow'
 import { sendNui } from '../utils/nui'
 
-/* ── Variantes Framer Motion ─────────────────────────────────────────────── */
 const MENU_VARIANTS = {
   hidden: {
     opacity: 0,
-    scale: 0.93,
-    y: -8,
-    filter: 'blur(4px)',
+    scale: 0.94,
+    y: -6,
+    filter: 'blur(3px)',
   },
   visible: {
     opacity: 1,
     scale: 1,
     y: 0,
     filter: 'blur(0px)',
-    transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
   },
   exit: {
     opacity: 0,
-    scale: 0.95,
-    y: -4,
+    scale: 0.96,
+    y: -3,
     filter: 'blur(2px)',
-    transition: { duration: 0.14 },
+    transition: { duration: 0.12 },
   },
 }
 
 const OVERLAY_VARIANTS = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.18 } },
-  exit: { opacity: 0, transition: { duration: 0.14 } },
+  visible: { opacity: 1, transition: { duration: 0.15 } },
+  exit: { opacity: 0, transition: { duration: 0.12 } },
 }
 
 const MARGIN = 12
 
-/**
- * Calcule la position corrigée pour que le menu reste dans l'écran.
- * Appelé avant le premier paint pour éviter le flash de position.
- */
-function clampPosition(
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): { x: number; y: number } {
-  const maxX = window.innerWidth - width - MARGIN
-  const maxY = window.innerHeight - height - MARGIN
+function clampPosition(x: number, y: number, width: number, height: number) {
   return {
-    x: Math.max(MARGIN, Math.min(x, maxX)),
-    y: Math.max(MARGIN, Math.min(y, maxY)),
+    x: Math.max(MARGIN, Math.min(x, window.innerWidth - width - MARGIN)),
+    y: Math.max(MARGIN, Math.min(y, window.innerHeight - height - MARGIN)),
   }
 }
 
-/* ── Composant ───────────────────────────────────────────────────────────── */
 const ContextMenu: FC<ContextMenuProps> = ({
   visible,
   position,
@@ -64,16 +51,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
   onClose,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null)
-  // Position après correction de débordement
-  const correctedPos = useRef({ x: position.x, y: position.y })
 
-  /* Fermeture */
   const handleClose = useCallback(async () => {
     onClose()
     await sendNui('menuClosed', {})
   }, [onClose])
 
-  /* ESC pour fermer */
   useEffect(() => {
     if (!visible) return
     const onKey = (e: KeyboardEvent) => {
@@ -83,18 +66,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
     return () => window.removeEventListener('keydown', onKey)
   }, [visible, handleClose])
 
-  /**
-   * Repositionnement après le premier paint pour éviter le débordement écran.
-   * On applique les corrections via style direct pour ne pas provoquer
-   * un re-render React (évite un second flash).
-   */
+  // Correction de position après premier paint
   useEffect(() => {
     if (!visible || !menuRef.current) return
-
     const rect = menuRef.current.getBoundingClientRect()
     const { x, y } = clampPosition(position.x, position.y, rect.width, rect.height)
-
-    correctedPos.current = { x, y }
     menuRef.current.style.left = `${x}px`
     menuRef.current.style.top = `${y}px`
   }, [visible, position])
@@ -103,7 +79,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
     <AnimatePresence>
       {visible && (
         <>
-          {/* ── Overlay ─────────────────────────────────────────────── */}
           <motion.div
             className="cm-overlay"
             variants={OVERLAY_VARIANTS}
@@ -113,34 +88,27 @@ const ContextMenu: FC<ContextMenuProps> = ({
             onClick={handleClose}
           />
 
-          {/* ── Menu ────────────────────────────────────────────────── */}
           <motion.div
             ref={menuRef}
             className="cm"
             role="menu"
             aria-label={title ?? 'Menu contextuel'}
-            /* Position initiale — sera corrigée dans useEffect si hors écran */
             style={{ left: position.x, top: position.y }}
             variants={MENU_VARIANTS}
             initial="hidden"
             animate="visible"
             exit="exit"
           >
-            {/* Header */}
             {title && (
               <div className="cm__header">
                 <h3 className="cm__title">{title}</h3>
-                <button
-                  className="cm__close"
-                  onClick={handleClose}
-                  aria-label="Fermer"
-                >
+                <button className="cm__close" onClick={handleClose} aria-label="Fermer">
                   <X />
                 </button>
               </div>
             )}
 
-            {/* Items */}
+            {/* overflow-x: visible ici est géré dans le SCSS — indispensable */}
             <div className="cm__body">
               {items.length > 0 ? (
                 items.map(item =>
@@ -160,7 +128,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
               )}
             </div>
 
-            {/* Footer */}
             <div className="cm__footer">
               <span>Échap pour fermer</span>
             </div>

@@ -1,0 +1,50 @@
+// ── Checkbox item — à ajouter à la fin de menu.scss ──────────────────────────
+
+.cm-checkbox {
+  cursor: pointer;
+  user-select: none;
+
+  // Override hover pour la variante checked
+  &--checked {
+    border-left-color: $blue;
+
+    .cm-checkbox__box {
+      background: $blue;
+      border-color: $blue;
+      box-shadow: 0 0 6px rgba($blue, 0.35);
+    }
+
+    .cm-item__label {
+      color: color.adjust($blue, $lightness: 18%);
+    }
+  }
+
+  &:hover:not(.cm-item--disabled) {
+    .cm-checkbox__box {
+      border-color: $blue;
+    }
+  }
+
+  // La box carrée
+  &__box {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid $text-muted;
+    border-radius: 3px;
+    background: transparent;
+    @include flex-center;
+    transition:
+      background $t-fast ease,
+      border-color $t-fast ease,
+      box-shadow $t-normal ease;
+  }
+
+  // Le tick à l'intérieur
+  &__tick {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+}

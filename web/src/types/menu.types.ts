@@ -17,6 +17,8 @@ export interface MenuItem {
   divider?: boolean
   cooldown?: number       // ms — délai avant re-sélection (inspiré kt_target)
   hidden?: boolean        // masqué mais conservé dans le DOM
+  checked?: boolean       // Pour les checkbox items
+  onChange?: (checked: boolean) => void  // Callback pour checkbox items
 }
 
 // ─── Position ─────────────────────────────────────────────────────────────────
@@ -44,6 +46,7 @@ export interface CursorState {
   visible: boolean
   x: number   // 0..1 normalisé
   y: number
+  theme?: 'default' | 'interact' | 'grab' | 'pointer'
 }
 
 // ─── Menu radial ─────────────────────────────────────────────────────────────

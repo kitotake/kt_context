@@ -23,6 +23,7 @@ client_scripts {
     'client/alts_client/quick_actions.lua',
     'client/alts_client/radial_menu.lua',
     'client/examples/*.lua',
+    --'client/nui/focus.lua',
 }
 
 server_scripts {

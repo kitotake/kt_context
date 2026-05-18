@@ -1,51 +1,62 @@
-// ── Palette ──────────────────────────────────────────────────────────────────
-$blue:    #3b82f6;
-$blue-dk: #2563eb;
-$green:   #10b981;
-$yellow:  #f59e0b;
-$red:     #ef4444;
-$red-dk:  #dc2626;
+// ── Palette — Thème sobre & sombre ───────────────────────────────────────────
+$blue:    #5b8dee;   // accent principal, plus doux
+$blue-dk: #3b6fd4;
+$green:   #3ecf8e;
+$yellow:  #e8a838;
+$red:     #e5534b;
+$red-dk:  #c73d35;
 
-// ── Backgrounds ──────────────────────────────────────────────────────────────
-$bg-menu:    rgba(13, 17, 28, 0.96);
-$bg-header:  rgba(20, 27, 45, 0.98);
-$bg-hover:   rgba(59, 130, 246, 0.14);
-$bg-overlay: rgba(0, 0, 0, 0.45);
+// ── Backgrounds — très sombres, quasi noirs ───────────────────────────────────
+$bg-menu:    rgba(10, 12, 18, 0.97);   // quasi noir
+$bg-header:  rgba(14, 17, 26, 0.99);
+$bg-hover:   rgba(91, 141, 238, 0.09); // accent très léger
+$bg-overlay: rgba(0, 0, 0, 0.55);
 
 // ── Text ─────────────────────────────────────────────────────────────────────
-$text-primary:   #f1f5f9;
-$text-secondary: #94a3b8;
-$text-muted:     #64748b;
-$text-disabled:  #475569;
+$text-primary:   #dde3f0;   // blanc cassé, pas agressif
+$text-secondary: #7a8aa8;
+$text-muted:     #4a5568;
+$text-disabled:  #374151;
 
-// ── Borders ──────────────────────────────────────────────────────────────────
-$border-subtle:  rgba(255, 255, 255, 0.07);
-$border-glow:    rgba(59, 130, 246, 0.35);
+// ── Borders — très subtils ────────────────────────────────────────────────────
+$border-subtle:  rgba(255, 255, 255, 0.05);
+$border-glow:    rgba(91, 141, 238, 0.25);
 
 // ── Shadows ──────────────────────────────────────────────────────────────────
-$shadow-menu: 0 24px 40px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4),
-              inset 0 1px 0 rgba(255,255,255,0.06);
-$shadow-sub:  0 16px 32px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+$shadow-menu: 0 32px 64px rgba(0, 0, 0, 0.75),
+              0 8px 24px rgba(0, 0, 0, 0.5),
+              inset 0 1px 0 rgba(255,255,255,0.04);
+$shadow-sub:  0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
 
 // ── Timing ───────────────────────────────────────────────────────────────────
 $ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 $ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
-$t-fast:        80ms;
-$t-normal:      160ms;
-$t-menu:        240ms;
+$t-fast:        70ms;
+$t-normal:      140ms;
+$t-menu:        220ms;
 
 // ── Dimensions ───────────────────────────────────────────────────────────────
-$menu-min-w: 260px;
-$menu-max-w: 400px;
-$sub-min-w:  220px;
-$radius:     10px;
-$radius-sm:  6px;
-$radius-xs:  4px;
+$menu-min-w: 250px;
+$menu-max-w: 380px;
+$sub-min-w:  210px;
+$radius:     8px;
+$radius-sm:  5px;
+$radius-xs:  3px;
 
 // ── Mixins ───────────────────────────────────────────────────────────────────
 @mixin glass {
   background: $bg-menu;
   border: 1px solid $border-subtle;
+  // Grain très subtil
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    border-radius: inherit;
+  }
 }
 
 @mixin flex-center {
@@ -61,8 +72,11 @@ $radius-xs:  4px;
 }
 
 @mixin scrollbar {
-  &::-webkit-scrollbar      { width: 4px }
-  &::-webkit-scrollbar-track { background: transparent; margin: 6px 0 }
-  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px }
-  &::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22) }
+  &::-webkit-scrollbar      { width: 3px }
+  &::-webkit-scrollbar-track { background: transparent }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    &:hover { background: rgba(255,255,255,0.15) }
+  }
 }

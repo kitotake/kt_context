@@ -124,59 +124,59 @@ function OpenAdvancedVehicleMenu()
 end
 
 -- ── Exemple 3 : Zones interactives ───────────────────────────────────────────
-Citizen.CreateThread(function()
-    Wait(2000)
+-- Citizen.CreateThread(function()
+--     Wait(2000)
 
-    -- Zone mécanique
-    RegisterMenuZone({
-        id     = 'zone_meca',
-        coords = vector3( ),
-        radius = 3.5,
-        shape  = 'circle',
-        title  = '🔧 Atelier Mécanique',
-        hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à l\'atelier',
-        marker = { type=2, color={r=59,g=130,b=246,a=130}, size=vector3(3.5,3.5,0.3) },
-        items  = {
-            { id='repair_veh',   label='Réparer le véhicule',   icon='Wrench'  },
-            { id='upgrade_veh',  label='Améliorer le véhicule', icon='Star'    },
-            { id='change_color', label='Changer la couleur',    icon='Palette' },
-        },
-    })
+--     -- Zone mécanique
+--     RegisterMenuZone({
+--         id     = 'zone_meca',
+--         coords = vector3( ),
+--         radius = 3.5,
+--         shape  = 'circle',
+--         title  = '🔧 Atelier Mécanique',
+--         hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à l\'atelier',
+--         marker = { type=2, color={r=59,g=130,b=246,a=130}, size=vector3(3.5,3.5,0.3) },
+--         items  = {
+--             { id='repair_veh',   label='Réparer le véhicule',   icon='Wrench'  },
+--             { id='upgrade_veh',  label='Améliorer le véhicule', icon='Star'    },
+--             { id='change_color', label='Changer la couleur',    icon='Palette' },
+--         },
+--     })
 
-    -- Zone banque
-    RegisterMenuZone({
-        id     = 'zone_bank',
-        coords = vector3(150.15, -1040.9, 29.37),
-        radius = 4.0,
-        shape  = 'circle',
-        title  = '🏦 Banque',
-        hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à la banque',
-        marker = { type=2, color={r=16,g=185,b=129,a=130}, size=vector3(4.0,4.0,0.3) },
-        items  = {
-            { id='bank_deposit',  label='Déposer',    icon='ArrowUpFromLine' },
-            { id='bank_withdraw', label='Retirer',    icon='ArrowDownToLine' },
-            { id='bank_balance',  label='Voir solde', icon='Wallet'          },
-        },
-    })
+--     -- Zone banque
+--     RegisterMenuZone({
+--         id     = 'zone_bank',
+--         coords = vector3(150.15, -1040.9, 29.37),
+--         radius = 4.0,
+--         shape  = 'circle',
+--         title  = '🏦 Banque',
+--         hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour accéder à la banque',
+--         marker = { type=2, color={r=16,g=185,b=129,a=130}, size=vector3(4.0,4.0,0.3) },
+--         items  = {
+--             { id='bank_deposit',  label='Déposer',    icon='ArrowUpFromLine' },
+--             { id='bank_withdraw', label='Retirer',    icon='ArrowDownToLine' },
+--             { id='bank_balance',  label='Voir solde', icon='Wallet'          },
+--         },
+--     })
 
-    -- Zone police (conditionnelle — utilise IsPlayerAdmin ou ton propre check)
-    RegisterMenuZone({
-        id     = 'zone_police',
-        coords = vector3(441.43, -982.14, 30.69),
-        radius = 5.0,
-        shape  = 'circle',
-        title  = '👮 Commissariat',
-        hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour les services de police',
-        marker = { type=2, color={r=239,g=68,b=68,a=110}, size=vector3(5.0,5.0,0.3) },
-        -- Retire la condition ou mets la tienne (ex: vérifier un job)
-        items  = {
-            { id='police_duty',   label='Prise de service',      icon='Shield' },
-            { id='police_armory', label='Armurerie',             icon='Swords' },
-            { id='police_garage', label='Garage',                icon='Car'    },
-            { id='police_jail',   label='Gérer les prisonniers', icon='Lock'   },
-        },
-    })
-end)
+--     -- Zone police (conditionnelle — utilise IsPlayerAdmin ou ton propre check)
+--     RegisterMenuZone({
+--         id     = 'zone_police',
+--         coords = vector3(441.43, -982.14, 30.69),
+--         radius = 5.0,
+--         shape  = 'circle',
+--         title  = '👮 Commissariat',
+--         hint   = 'Appuyez sur ~INPUT_CONTEXT~ pour les services de police',
+--         marker = { type=2, color={r=239,g=68,b=68,a=110}, size=vector3(5.0,5.0,0.3) },
+--         -- Retire la condition ou mets la tienne (ex: vérifier un job)
+--         items  = {
+--             { id='police_duty',   label='Prise de service',      icon='Shield' },
+--             { id='police_armory', label='Armurerie',             icon='Swords' },
+--             { id='police_garage', label='Garage',                icon='Car'    },
+--             { id='police_jail',   label='Gérer les prisonniers', icon='Lock'   },
+--         },
+--     })
+-- end)
 
 -- ── Commandes de test ─────────────────────────────────────────────────────────
 RegisterCommand('vmenu', OpenAdvancedVehicleMenu, false)

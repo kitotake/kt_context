@@ -1,8 +1,6 @@
 import { useEffect, type FC } from 'react'
 import ContextMenu from './components/ContextMenu'
-import Cursor from './components/Cursor'
 import { useContextMenu } from './hooks/useContextMenu'
-import { useCursor } from './hooks/useCursor'
 import { isEnvBrowser } from './utils/nui'
 import type { MenuItem } from './types/menu.types'
 
@@ -59,7 +57,7 @@ const DEV_ITEMS: MenuItem[] = [
       { id: 'adm_coords_self', label: 'Mes coordonnées',    icon: 'MapPin'     },
       { id: 'adm_tp_waypoint', label: 'TP Waypoint',        icon: 'Navigation' },
       { id: 'adm_noclip',      label: 'NoClip',             icon: 'Ghost'      },
-      { id: 'adm_god',         label: 'God Mode',           icon: 'Shield'     },
+      { id: 'adm_god',         label: 'God Mode',           icon: 'Shield',   checked: false },
       { id: 'adm_heal_self',   label: 'Se soigner',         icon: 'Heart',   variant: 'success' as const },
       { id: 'adm_delete_veh',  label: 'Supprimer véhicule', icon: 'Trash2',  variant: 'danger'  as const },
     ],
@@ -70,7 +68,6 @@ const DEV_ITEMS: MenuItem[] = [
 /* ── App ────────────────────────────────────────────────────────────────── */
 const App: FC = () => {
   const { state, openMenu, closeMenu } = useContextMenu()
-  const { cursor } = useCursor()
 
   /* En mode FiveM, le body est masqué par défaut; visible seulement via NUI */
   useEffect(() => {
@@ -136,9 +133,6 @@ const App: FC = () => {
           </p>
         </div>
       )}
-
-      {/* Curseur custom (FiveM) */}
-      <Cursor cursor={cursor} />
 
       {/* Menu contextuel */}
       <ContextMenu
