@@ -22,6 +22,7 @@ client_scripts {
     'client/alts_client/keybinds.lua',
     'client/alts_client/quick_actions.lua',
     'client/alts_client/radial_menu.lua',
+    'client/debug_target.lua',
     'client/examples/*.lua',
     --'client/nui/focus.lua',
 }

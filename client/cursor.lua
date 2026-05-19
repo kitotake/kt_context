@@ -1,14 +1,16 @@
 -- =============================================
--- SYSTÈME CURSEUR CONTEXTUEL (ALT GAUCHE)
--- VERSION STABLE / CLEAN
+-- CURSEUR CONTEXTUEL RP CLEAN V4
+-- ALT GAUCHE + MENU POSITIONNÉ + RAYCAST PROPRE
 -- =============================================
 
 local CURSOR_KEY = Config and Config.CursorKey or 19
 
 local cursorActive = false
+local lastVehCheck = 0
+local cachedVeh, cachedDist = -1, math.huge
 
 -- =============================================
--- HELPERS
+-- UTILS
 -- =============================================
 
 function IsCursorActive()
@@ -19,34 +21,26 @@ local function SafeIsMenuOpen()
     if IsMenuOpen then
         return IsMenuOpen()
     end
-
     return false
 end
 
 local function GetClosestVehicleData(coords)
-    local interactionDistance = Config.InteractionDistance or 5.0
-
-    local vehicle = GetClosestVehicle(
-        coords.x,
-        coords.y,
-        coords.z,
-        interactionDistance,
-        0,
-        70
+    local veh = GetClosestVehicle(
+        coords.x, coords.y, coords.z,
+        Config.InteractionDistance or 5.0,
+        0, 70
     )
 
-    if vehicle and vehicle ~= 0 then
-        local vehCoords = GetEntityCoords(vehicle)
-        local dist = #(coords - vehCoords)
-
-        return vehicle, dist
+    if veh and veh ~= 0 then
+        local vcoords = GetEntityCoords(veh)
+        return veh, #(coords - vcoords)
     end
 
     return -1, math.huge
 end
 
 -- =============================================
--- THREAD PRINCIPAL CURSEUR
+-- CURSEUR SYSTEM
 -- =============================================
 
 Citizen.CreateThread(function()
@@ -59,116 +53,82 @@ Citizen.CreateThread(function()
             if not cursorActive then
                 cursorActive = true
 
-                -- Affiche le curseur réel
-                SetNuiFocus(true, true)
+               SetNuiFocus(true, true)
+               SetNuiFocusKeepInput(true)
 
                 SendNUIMessage({
-                    type = 'cursorShow',
-                    data = {
-                        visible = true
-                    }
+                    type = "cursorShow",
+                    data = { visible = true }
                 })
             end
 
-            -- Désactive caméra / tir
+            -- blocage contrôles
             DisableControlAction(0, 1, true)
             DisableControlAction(0, 2, true)
-
             DisableControlAction(0, 24, true)
             DisableControlAction(0, 25, true)
-
-            DisableControlAction(0, 68, true)
             DisableControlAction(0, 69, true)
-
-            DisableControlAction(0, 18, true)
             DisableControlAction(0, 142, true)
 
-            -- Clic
-            if IsControlJustReleased(0, 24) then
-                local sw, sh = GetActiveScreenResolution()
-                
-                -- Récupère la position EXACTE de la souris en pixels
-                local mouseX, mouseY = GetNuiCursorPosition()
-                
-                -- Convertit en coordonnées normalisées (0-1)
-                local normalizedX = mouseX / sw
-                local normalizedY = mouseY / sh
-
-                HandleCursorClick(mouseX, mouseY, normalizedX, normalizedY)
+            -- clic
+            if IsDisabledControlJustReleased(0, 24) then
+                local x, y = GetNuiCursorPosition()
+                HandleCursorClickAtScreenPos(x, y)
             end
 
-        elseif cursorActive then
-            cursorActive = false
-
-            -- Désactive le curseur réel
-            SetNuiFocus(false, false)
-
-            SendNUIMessage({
-                type = 'cursorShow',
-                data = {
-                    visible = false
-                }
-            })
-        end
-
+        elseif cursorActive then cursorActive = false 
+            SetNuiFocus(false, false) 
+            SetNuiFocusKeepInput(false)
+            SendNUIMessage({ type = 'cursorShow',
+            data = { visible = false } }) 
+        end 
         Wait(sleep)
-    end
+     end 
 end)
 
 -- =============================================
--- GESTION DU CLIC
+-- RAYCAST PROPRE
 -- =============================================
 
-function HandleCursorClick(nx, ny)
+function HandleCursorClickAtScreenPos(screenX, screenY)
     local sw, sh = GetActiveScreenResolution()
+
+    local nx = screenX / sw
+    local ny = screenY / sh
 
     local camCoords = GetGameplayCamCoords()
     local camRot = GetGameplayCamRot(2)
 
     local direction = RotationToDirection(camRot)
 
-    local startCoord = camCoords
-    local endCoord = startCoord + (direction * 100.0)
-
-    local ray = StartExpensiveSynchronousShapeTestLosProbe(
-        startCoord.x,
-        startCoord.y,
-        startCoord.z,
-        endCoord.x,
-        endCoord.y,
-        endCoord.z,
+    local ray = StartShapeTestRay(
+        camCoords.x, camCoords.y, camCoords.z,
+        camCoords.x + direction.x * 100.0,
+        camCoords.y + direction.y * 100.0,
+        camCoords.z + direction.z * 100.0,
         511,
         PlayerPedId(),
-        7
+        0
     )
 
-    local _, hit, _, _, hitEntity = GetShapeTestResult(ray)
+    local _, hit, _, _, entity = GetShapeTestResult(ray)
 
-    local menuX = sw * 0.5
-    local menuY = sh * 0.5
+    local menuX, menuY = screenX, screenY
 
-    if hit == 1 and hitEntity ~= 0 then
-        local entityType = GetEntityType(hitEntity)
-
-        OpenContextForEntity(
-            hitEntity,
-            entityType,
-            menuX,
-            menuY
-        )
+    if hit == 1 and entity ~= 0 then
+        OpenContextForEntity(entity, GetEntityType(entity), menuX, menuY)
     else
         OpenGeneralContextMenu(menuX, menuY)
     end
 end
 
 -- =============================================
--- MENU SELON ENTITÉ
+-- MENU ENTITY
 -- =============================================
 
 function OpenContextForEntity(entity, entityType, x, y)
     local isAdmin = IsPlayerAdmin()
-    local adminRole = GetAdminRole()
-
+    local role = GetAdminRole()
     local items = {}
 
     -- PED
@@ -177,14 +137,10 @@ function OpenContextForEntity(entity, entityType, x, y)
             local playerId = NetworkGetPlayerIndexFromPed(entity)
 
             if playerId ~= -1 then
-                local playerName = GetPlayerName(playerId) or 'Joueur'
                 local serverId = GetPlayerServerId(playerId)
+                local name = GetPlayerName(playerId) or "Joueur"
 
-                items = BuildPlayerMenu(
-                    serverId,
-                    playerName,
-                    isAdmin
-                )
+                items = BuildPlayerMenu(serverId, name, isAdmin)
             else
                 items = BuildNpcMenu(entity, isAdmin)
             end
@@ -195,14 +151,9 @@ function OpenContextForEntity(entity, entityType, x, y)
     -- VEHICULE
     elseif entityType == 2 then
         local locked = GetVehicleDoorLockStatus(entity) ~= 1
+        items = BuildVehicleMenu(entity, locked, isAdmin)
 
-        items = BuildVehicleMenu(
-            entity,
-            locked,
-            isAdmin
-        )
-
-    -- OBJET
+    -- PROP
     elseif entityType == 3 then
         items = BuildPropMenu(entity, isAdmin)
 
@@ -211,30 +162,23 @@ function OpenContextForEntity(entity, entityType, x, y)
         return
     end
 
-    -- Section admin
-    if isAdmin and adminRole then
+    -- ADMIN
+    if isAdmin and role then
         table.insert(items, {
-            id = '_div_admin',
+            id = "_admin_div",
             divider = true,
-            label = ''
+            label = ""
         })
 
         table.insert(items, {
-            id = 'admin_section',
-            label = '⚡ ' .. L('admin_options') .. ' [' .. adminRole .. ']',
-            icon = 'ShieldAlert',
-            badge = adminRole,
-            badgeColor = '#f59e0b',
+            id = "admin",
+            label = "⚡ Admin [" .. role .. "]",
+            icon = "ShieldAlert",
             submenu = BuildAdminEntityMenu(entity, entityType)
         })
     end
 
-    OpenContextMenu(
-        x,
-        y,
-        items,
-        GetEntityMenuTitle(entityType, entity)
-    )
+    OpenContextMenu(x, y, items, GetEntityMenuTitle(entityType, entity))
 end
 
 -- =============================================
@@ -243,20 +187,17 @@ end
 
 function GetEntityMenuTitle(entityType, entity)
     if entityType == 1 then
-        return IsPedAPlayer(entity)
-            and '👤 Joueur'
-            or '🤖 PNJ'
+        return IsPedAPlayer(entity) and "👤 Joueur" or "🤖 PNJ"
     elseif entityType == 2 then
-        return '🚗 Véhicule'
+        return "🚗 Véhicule"
     elseif entityType == 3 then
-        return '📦 Objet'
+        return "📦 Objet"
     end
-
-    return '🌍 Interaction'
+    return "🌍 Interaction"
 end
 
 -- =============================================
--- MENU GÉNÉRAL
+-- MENU GENERAL
 -- =============================================
 
 function OpenGeneralContextMenu(x, y)
@@ -265,138 +206,57 @@ function OpenGeneralContextMenu(x, y)
 
     local items = {}
 
-    -- Véhicule proche
-    local veh, vehDist = GetClosestVehicleData(coords)
+    -- VEH CACHE PERF
+    if GetGameTimer() - lastVehCheck > 500 then
+        cachedVeh, cachedDist = GetClosestVehicleData(coords)
+        lastVehCheck = GetGameTimer()
+    end
 
-    if veh ~= -1 and vehDist < (Config.InteractionDistance or 5.0) then
+    if cachedVeh ~= -1 and cachedDist < (Config.InteractionDistance or 5.0) then
         table.insert(items, {
-            id = 'nearby_vehicle',
-            label = ('Véhicule (%.1fm)'):format(vehDist),
-            icon = 'Car',
-
+            id = "near_vehicle",
+            label = ("Véhicule (%.1fm)"):format(cachedDist),
+            icon = "Car",
             submenu = BuildVehicleMenu(
-                veh,
-                GetVehicleDoorLockStatus(veh) ~= 1,
+                cachedVeh,
+                GetVehicleDoorLockStatus(cachedVeh) ~= 1,
                 IsPlayerAdmin()
             )
         })
     end
 
-    -- Actions joueur
     table.insert(items, {
-        id = 'player_actions',
-        label = 'Actions joueur',
-        icon = 'User2',
-
+        id = "player_actions",
+        label = "Actions joueur",
+        icon = "User2",
         submenu = {
-            {
-                id = 'handsup',
-                label = "Mains en l'air",
-                icon = 'HandMetal'
-            },
-            {
-                id = 'sit',
-                label = "S'asseoir",
-                icon = 'Armchair'
-            },
-            {
-                id = 'lay',
-                label = "S'allonger",
-                icon = 'BedDouble'
-            },
-            {
-                id = 'dance',
-                label = 'Danser',
-                icon = 'Music'
-            },
-            {
-                id = 'stopanim',
-                label = 'Arrêter anim',
-                icon = 'StopCircle'
-            }
+            { id = "handsup", label = "Mains en l'air", icon = "Hand" },
+            { id = "sit", label = "S'asseoir", icon = "Armchair" },
+            { id = "lay", label = "S'allonger", icon = "BedDouble" },
+            { id = "dance", label = "Danser", icon = "Music" },
+            { id = "stop", label = "Stop anim", icon = "StopCircle" }
         }
     })
 
     table.insert(items, {
-        id = 'inventory',
-        label = 'Inventaire',
-        icon = 'Backpack',
-        description = 'Voir mes objets'
+        id = "inventory",
+        label = "Inventaire",
+        icon = "Backpack"
     })
 
-    table.insert(items, {
-        id = 'phone',
-        label = 'Téléphone',
-        icon = 'Phone'
-    })
-
-    -- Admin
     if IsPlayerAdmin() then
-        local role = GetAdminRole()
-
         table.insert(items, {
-            id = '_div',
-            divider = true,
-            label = ''
-        })
-
-        table.insert(items, {
-            id = 'admin_general',
-            label = '⚡ Options Admin',
-            icon = 'ShieldAlert',
-            badge = role,
-            badgeColor = '#f59e0b',
-
+            id = "admin_global",
+            label = "⚡ Admin",
+            icon = "Shield",
             submenu = {
-                {
-                    id = 'adm_coords_self',
-                    label = 'Mes coordonnées',
-                    icon = 'MapPin',
-                    description = FormatCoords(coords),
-                    disabled = true
-                },
-                {
-                    id = 'adm_tp_waypoint',
-                    label = 'TP Waypoint',
-                    icon = 'Navigation'
-                },
-                {
-                    id = 'adm_god',
-                    label = 'God Mode',
-                    icon = 'Shield'
-                },
-                {
-                    id = 'adm_invisible',
-                    label = 'Invisible',
-                    icon = 'EyeOff'
-                },
-                {
-                    id = 'adm_heal_self',
-                    label = 'Se soigner',
-                    icon = 'Heart',
-                    color = '#10b981'
-                },
-                {
-                    id = 'adm_armor_self',
-                    label = 'Armure',
-                    icon = 'ShieldCheck',
-                    color = '#3b82f6'
-                },
-                {
-                    id = 'adm_delete',
-                    label = 'Suppr. véhicule',
-                    icon = 'Trash2',
-                    color = '#ef4444'
-                },
-                {
-                    id = 'adm_repair',
-                    label = 'Réparer véhicule',
-                    icon = 'Wrench',
-                    color = '#10b981'
-                }
+                { id = "tp", label = "TP waypoint", icon = "Navigation" },
+                { id = "god", label = "God mode", icon = "Shield" },
+                { id = "heal", label = "Heal", icon = "Heart" },
+                { id = "deleteveh", label = "Delete véhicule", icon = "Trash2" }
             }
         })
     end
 
-    OpenContextMenu(x, y, items, '🌍 Interaction')
+    OpenContextMenu(x, y, items, "Interaction")
 end

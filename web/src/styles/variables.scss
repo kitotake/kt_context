@@ -1,42 +1,46 @@
-// ── Palette — Thème sobre & sombre ───────────────────────────────────────────
-$blue:    #5b8dee;   // accent principal, plus doux
-$blue-dk: #3b6fd4;
-$green:   #3ecf8e;
-$yellow:  #e8a838;
-$red:     #e5534b;
-$red-dk:  #c73d35;
+// ── Palette — Thème sombre sobre ─────────────────────────────────────────────
+$blue:    #4f8ef7;
+$blue-dk: #2d6ae0;
+$blue-glow: rgba(79, 142, 247, 0.18);
+$green:   #34d399;
+$yellow:  #fbbf24;
+$red:     #f87171;
+$red-dk:  #dc2626;
 
-// ── Backgrounds — très sombres, quasi noirs ───────────────────────────────────
-$bg-menu:    rgba(10, 12, 18, 0.97);   // quasi noir
-$bg-header:  rgba(14, 17, 26, 0.99);
-$bg-hover:   rgba(91, 141, 238, 0.09); // accent très léger
-$bg-overlay: rgba(0, 0, 0, 0.55);
+// ── Backgrounds — Noir profond, presque pas de transparence ──────────────────
+$bg-menu:    rgb(9, 11, 17);
+$bg-header:  rgb(12, 15, 22);
+$bg-sub:     rgb(7, 9, 15);
+$bg-hover:   rgba(255, 255, 255, 0.04);
+$bg-overlay: rgba(0, 0, 0, 0.0);   // Pas d'overlay — menu seul
 
 // ── Text ─────────────────────────────────────────────────────────────────────
-$text-primary:   #dde3f0;   // blanc cassé, pas agressif
-$text-secondary: #7a8aa8;
-$text-muted:     #4a5568;
-$text-disabled:  #374151;
+$text-primary:   #e2e8f0;
+$text-secondary: #64748b;
+$text-muted:     #334155;
+$text-disabled:  #2a3240;
 
-// ── Borders — très subtils ────────────────────────────────────────────────────
-$border-subtle:  rgba(255, 255, 255, 0.05);
-$border-glow:    rgba(91, 141, 238, 0.25);
+// ── Borders ──────────────────────────────────────────────────────────────────
+$border-subtle:  rgba(255, 255, 255, 0.055);
+$border-active:  rgba(79, 142, 247, 0.4);
+$border-glow:    rgba(79, 142, 247, 0.25);
 
 // ── Shadows ──────────────────────────────────────────────────────────────────
-$shadow-menu: 0 32px 64px rgba(0, 0, 0, 0.75),
-              0 8px 24px rgba(0, 0, 0, 0.5),
-              inset 0 1px 0 rgba(255,255,255,0.04);
-$shadow-sub:  0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+$shadow-menu: 0 32px 64px rgba(0, 0, 0, 0.8),
+              0 8px 24px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(255, 255, 255, 0.06);
+$shadow-sub:  0 16px 40px rgba(0, 0, 0, 0.7),
+              0 0 0 1px rgba(255, 255, 255, 0.05);
 
 // ── Timing ───────────────────────────────────────────────────────────────────
 $ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 $ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
 $t-fast:        70ms;
 $t-normal:      140ms;
-$t-menu:        220ms;
+$t-menu:        200ms;
 
 // ── Dimensions ───────────────────────────────────────────────────────────────
-$menu-min-w: 250px;
+$menu-min-w: 240px;
 $menu-max-w: 380px;
 $sub-min-w:  210px;
 $radius:     8px;
@@ -47,16 +51,8 @@ $radius-xs:  3px;
 @mixin glass {
   background: $bg-menu;
   border: 1px solid $border-subtle;
-  // Grain très subtil
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-    border-radius: inherit;
-  }
+  border-radius: $radius;
+  box-shadow: $shadow-menu;
 }
 
 @mixin flex-center {

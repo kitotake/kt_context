@@ -5,44 +5,44 @@ import type { ContextMenuProps } from '../types/menu.types'
 import MenuItemRow from './MenuItemRow'
 import { sendNui } from '../utils/nui'
 
+/* ── Variantes Framer Motion ─────────────────────────────────────────────── */
 const MENU_VARIANTS = {
   hidden: {
     opacity: 0,
-    scale: 0.94,
+    scale: 0.95,
     y: -6,
-    filter: 'blur(3px)',
   },
   visible: {
     opacity: 1,
     scale: 1,
     y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] },
   },
   exit: {
     opacity: 0,
-    scale: 0.96,
+    scale: 0.97,
     y: -3,
-    filter: 'blur(2px)',
     transition: { duration: 0.12 },
   },
 }
 
-const OVERLAY_VARIANTS = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.15 } },
-  exit: { opacity: 0, transition: { duration: 0.12 } },
-}
+const MARGIN = 10
 
-const MARGIN = 12
-
-function clampPosition(x: number, y: number, width: number, height: number) {
+function clampPosition(
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): { x: number; y: number } {
+  const maxX = window.innerWidth - width - MARGIN
+  const maxY = window.innerHeight - height - MARGIN
   return {
-    x: Math.max(MARGIN, Math.min(x, window.innerWidth - width - MARGIN)),
-    y: Math.max(MARGIN, Math.min(y, window.innerHeight - height - MARGIN)),
+    x: Math.max(MARGIN, Math.min(x, maxX)),
+    y: Math.max(MARGIN, Math.min(y, maxY)),
   }
 }
 
+/* ── Composant ───────────────────────────────────────────────────────────── */
 const ContextMenu: FC<ContextMenuProps> = ({
   visible,
   position,
@@ -52,11 +52,13 @@ const ContextMenu: FC<ContextMenuProps> = ({
 }) => {
   const menuRef = useRef<HTMLDivElement>(null)
 
+  /* Fermeture */
   const handleClose = useCallback(async () => {
     onClose()
     await sendNui('menuClosed', {})
   }, [onClose])
 
+  /* ESC pour fermer */
   useEffect(() => {
     if (!visible) return
     const onKey = (e: KeyboardEvent) => {
@@ -66,7 +68,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
     return () => window.removeEventListener('keydown', onKey)
   }, [visible, handleClose])
 
-  // Correction de position après premier paint
+  /**
+   * Repositionnement après paint pour éviter le débordement.
+   * Position initiale = position exacte du clic.
+   * Si le menu dépasse le bord, on le décale.
+   */
   useEffect(() => {
     if (!visible || !menuRef.current) return
     const rect = menuRef.current.getBoundingClientRect()
@@ -79,36 +85,42 @@ const ContextMenu: FC<ContextMenuProps> = ({
     <AnimatePresence>
       {visible && (
         <>
-          <motion.div
+          {/* Overlay transparent — ferme le menu au clic en dehors */}
+          <div
             className="cm-overlay"
-            variants={OVERLAY_VARIANTS}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
             onClick={handleClose}
           />
 
+          {/* ── Menu ────────────────────────────────────────────────── */}
           <motion.div
             ref={menuRef}
             className="cm"
             role="menu"
             aria-label={title ?? 'Menu contextuel'}
-            style={{ left: position.x, top: position.y }}
+            style={{
+              left: position.x,
+              top: position.y,
+            }}
             variants={MENU_VARIANTS}
             initial="hidden"
             animate="visible"
             exit="exit"
           >
+            {/* Header */}
             {title && (
               <div className="cm__header">
                 <h3 className="cm__title">{title}</h3>
-                <button className="cm__close" onClick={handleClose} aria-label="Fermer">
+                <button
+                  className="cm__close"
+                  onClick={handleClose}
+                  aria-label="Fermer"
+                >
                   <X />
                 </button>
               </div>
             )}
 
-            {/* overflow-x: visible ici est géré dans le SCSS — indispensable */}
+            {/* Items */}
             <div className="cm__body">
               {items.length > 0 ? (
                 items.map(item =>
@@ -128,8 +140,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
               )}
             </div>
 
+            {/* Footer */}
             <div className="cm__footer">
-              <span>Échap pour fermer</span>
+              <span>fermer</span>
             </div>
           </motion.div>
         </>

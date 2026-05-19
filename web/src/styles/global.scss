@@ -10,8 +10,9 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'SF Mono', ui-monospace, monospace;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background: transparent;
   user-select: none;
 }
@@ -25,8 +26,4 @@ body {
   height: 100vh;
   position: relative;
   pointer-events: none;
-}
-
-.cursor-hidden {
-  cursor: none;
 }
