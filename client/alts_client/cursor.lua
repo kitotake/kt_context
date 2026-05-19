@@ -1,6 +1,5 @@
 -- =============================================
--- CURSEUR CONTEXTUEL RP CLEAN V4
--- ALT GAUCHE + MENU POSITIONNÉ + RAYCAST PROPRE
+-- CURSEUR CONTEXTUEL RP CLEAN V4 — FIXED
 -- =============================================
 
 local CURSOR_KEY = Config and Config.CursorKey or 19
@@ -17,52 +16,44 @@ function IsCursorActive()
     return cursorActive
 end
 
-local function SafeIsMenuOpen()
-    if IsMenuOpen then
-        return IsMenuOpen()
-    end
-    return false
-end
-
 local function GetClosestVehicleData(coords)
     local veh = GetClosestVehicle(
         coords.x, coords.y, coords.z,
         Config.InteractionDistance or 5.0,
         0, 70
     )
-
     if veh and veh ~= 0 then
         local vcoords = GetEntityCoords(veh)
         return veh, #(coords - vcoords)
     end
-
     return -1, math.huge
 end
 
 -- =============================================
 -- CURSEUR SYSTEM
+-- FIX: on ne vérifie plus IsMenuOpen() pour activer/désactiver le curseur.
+-- Le menu s'ouvre AVEC le focus NUI déjà actif (curseur actif).
+-- La fermeture du menu NE retire PAS le focus si le curseur est toujours actif.
 -- =============================================
 
 Citizen.CreateThread(function()
     while true do
         local sleep = 100
 
-        if IsControlPressed(0, CURSOR_KEY) and not SafeIsMenuOpen() then
+        if IsControlPressed(0, CURSOR_KEY) then
             sleep = 0
 
             if not cursorActive then
                 cursorActive = true
-
-               SetNuiFocus(true, true)
-               SetNuiFocusKeepInput(true)
-
+                SetNuiFocus(true, true)
+                SetNuiFocusKeepInput(true)
                 SendNUIMessage({
                     type = "cursorShow",
                     data = { visible = true }
                 })
             end
 
-            -- blocage contrôles
+            -- Blocage des contrôles caméra/joueur pendant le mode curseur
             DisableControlAction(0, 1, true)
             DisableControlAction(0, 2, true)
             DisableControlAction(0, 24, true)
@@ -70,20 +61,32 @@ Citizen.CreateThread(function()
             DisableControlAction(0, 69, true)
             DisableControlAction(0, 142, true)
 
-            -- clic
+            -- Clic gauche = ouvrir menu à la position du curseur
             if IsDisabledControlJustReleased(0, 24) then
-                local x, y = GetNuiCursorPosition()
-                HandleCursorClickAtScreenPos(x, y)
+                -- Le menu n'est pas encore ouvert → on cherche l'entité
+                if not IsMenuOpen() then
+                    local x, y = GetNuiCursorPosition()
+                    HandleCursorClickAtScreenPos(x, y)
+                end
+                -- Si le menu est déjà ouvert, on laisse le NUI gérer le clic
             end
 
-        elseif cursorActive then cursorActive = false 
-            SetNuiFocus(false, false) 
+        elseif cursorActive then
+            -- ALT relâché
+            cursorActive = false
+
+            -- On ferme le menu si ouvert
+            if IsMenuOpen() then
+                CloseContextMenu()
+            end
+
+            SetNuiFocus(false, false)
             SetNuiFocusKeepInput(false)
-            SendNUIMessage({ type = 'cursorShow',
-            data = { visible = false } }) 
-        end 
+            SendNUIMessage({ type = 'cursorShow', data = { visible = false } })
+        end
+
         Wait(sleep)
-     end 
+    end
 end)
 
 -- =============================================
@@ -91,14 +94,8 @@ end)
 -- =============================================
 
 function HandleCursorClickAtScreenPos(screenX, screenY)
-    local sw, sh = GetActiveScreenResolution()
-
-    local nx = screenX / sw
-    local ny = screenY / sh
-
     local camCoords = GetGameplayCamCoords()
     local camRot = GetGameplayCamRot(2)
-
     local direction = RotationToDirection(camRot)
 
     local ray = StartShapeTestRay(
@@ -113,12 +110,15 @@ function HandleCursorClickAtScreenPos(screenX, screenY)
 
     local _, hit, _, _, entity = GetShapeTestResult(ray)
 
-    local menuX, menuY = screenX, screenY
-
     if hit == 1 and entity ~= 0 then
-        OpenContextForEntity(entity, GetEntityType(entity), menuX, menuY)
+        -- FIX: notifier debug_target pour afficher le marqueur sur l'entité cliquée
+        if DebugTarget_OnEntityClick then
+            DebugTarget_OnEntityClick(entity)
+        end
+        OpenContextForEntity(entity, GetEntityType(entity), screenX, screenY)
     else
-        OpenGeneralContextMenu(menuX, menuY)
+        ClearDebugEntity()
+        OpenGeneralContextMenu(screenX, screenY)
     end
 end
 
@@ -131,15 +131,12 @@ function OpenContextForEntity(entity, entityType, x, y)
     local role = GetAdminRole()
     local items = {}
 
-    -- PED
     if entityType == 1 then
         if IsPedAPlayer(entity) then
             local playerId = NetworkGetPlayerIndexFromPed(entity)
-
             if playerId ~= -1 then
                 local serverId = GetPlayerServerId(playerId)
                 local name = GetPlayerName(playerId) or "Joueur"
-
                 items = BuildPlayerMenu(serverId, name, isAdmin)
             else
                 items = BuildNpcMenu(entity, isAdmin)
@@ -147,29 +144,18 @@ function OpenContextForEntity(entity, entityType, x, y)
         else
             items = BuildNpcMenu(entity, isAdmin)
         end
-
-    -- VEHICULE
     elseif entityType == 2 then
         local locked = GetVehicleDoorLockStatus(entity) ~= 1
         items = BuildVehicleMenu(entity, locked, isAdmin)
-
-    -- PROP
     elseif entityType == 3 then
         items = BuildPropMenu(entity, isAdmin)
-
     else
         OpenGeneralContextMenu(x, y)
         return
     end
 
-    -- ADMIN
     if isAdmin and role then
-        table.insert(items, {
-            id = "_admin_div",
-            divider = true,
-            label = ""
-        })
-
+        table.insert(items, { id = "_admin_div", divider = true, label = "" })
         table.insert(items, {
             id = "admin",
             label = "⚡ Admin [" .. role .. "]",
@@ -203,10 +189,8 @@ end
 function OpenGeneralContextMenu(x, y)
     local ped = PlayerPedId()
     local coords = GetEntityCoords(ped)
-
     local items = {}
 
-    -- VEH CACHE PERF
     if GetGameTimer() - lastVehCheck > 500 then
         cachedVeh, cachedDist = GetClosestVehicleData(coords)
         lastVehCheck = GetGameTimer()
@@ -231,18 +215,14 @@ function OpenGeneralContextMenu(x, y)
         icon = "User2",
         submenu = {
             { id = "handsup", label = "Mains en l'air", icon = "Hand" },
-            { id = "sit", label = "S'asseoir", icon = "Armchair" },
-            { id = "lay", label = "S'allonger", icon = "BedDouble" },
-            { id = "dance", label = "Danser", icon = "Music" },
-            { id = "stop", label = "Stop anim", icon = "StopCircle" }
+            { id = "sit",     label = "S'asseoir",      icon = "Armchair" },
+            { id = "lay",     label = "S'allonger",     icon = "BedDouble" },
+            { id = "dance",   label = "Danser",         icon = "Music" },
+            { id = "stop",    label = "Stop anim",      icon = "StopCircle" }
         }
     })
 
-    table.insert(items, {
-        id = "inventory",
-        label = "Inventaire",
-        icon = "Backpack"
-    })
+    table.insert(items, { id = "inventory", label = "Inventaire", icon = "Backpack" })
 
     if IsPlayerAdmin() then
         table.insert(items, {
@@ -250,10 +230,10 @@ function OpenGeneralContextMenu(x, y)
             label = "⚡ Admin",
             icon = "Shield",
             submenu = {
-                { id = "tp", label = "TP waypoint", icon = "Navigation" },
-                { id = "god", label = "God mode", icon = "Shield" },
-                { id = "heal", label = "Heal", icon = "Heart" },
-                { id = "deleteveh", label = "Delete véhicule", icon = "Trash2" }
+                { id = "adm_tp_waypoint", label = "TP waypoint",       icon = "Navigation" },
+                { id = "adm_god",         label = "God mode",          icon = "Shield" },
+                { id = "adm_heal_self",   label = "Heal",              icon = "Heart" },
+                { id = "adm_delete",      label = "Delete véhicule",   icon = "Trash2" }
             }
         })
     end

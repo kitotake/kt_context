@@ -1,35 +1,17 @@
 -- =============================================
--- ZONES INTERACTIVES
+-- ZONES INTERACTIVES — FIXED
+-- FIX: OpenContextMenu gère maintenant son propre focus si curseur inactif
+-- Pas de changement fonctionnel ici, mais on utilise la touche E correctement
 -- =============================================
 
 local registeredZones = {}
 local activeZone      = nil
 
--- ─── Enregistrement ─────────────────────────────────────────────────────────
---[[
-  RegisterMenuZone({
-    id       = "my_zone",
-    coords   = vector3(100.0, 200.0, 30.0),
-    radius   = 3.0,          -- ou size = vector3(w, h, d) pour boîte
-    shape    = "circle",     -- "circle" | "box"
-    heading  = 0.0,
-    title    = "Ma Zone",
-    items    = { ... },
-    marker   = {
-      type   = 2,
-      color  = {r=59, g=130, b=246, a=150},
-      size   = vector3(1.0, 1.0, 0.5),
-    },
-    hint      = "Appuyez sur ~INPUT_CONTEXT~",
-    condition = function() return true end,
-  })
-]]
 function RegisterMenuZone(zoneData)
     assert(zoneData.id,     '[KT Context] Zone sans id')
     assert(zoneData.coords, '[KT Context] Zone sans coords')
     assert(zoneData.items,  '[KT Context] Zone sans items')
 
-    -- Validation des items
     local ok, reason = Validators.MenuItems(zoneData.items)
     if not ok then
         print(('[KT Context] Zone "%s" items invalides: %s'):format(zoneData.id, reason))
@@ -46,7 +28,6 @@ function RegisterMenuZone(zoneData)
     return zoneData.id
 end
 
--- ─── Suppression ─────────────────────────────────────────────────────────────
 function RemoveMenuZone(zoneId)
     if registeredZones[zoneId] then
         registeredZones[zoneId] = nil
@@ -54,7 +35,6 @@ function RemoveMenuZone(zoneId)
     end
 end
 
--- ─── Thread principal ────────────────────────────────────────────────────────
 Citizen.CreateThread(function()
     while true do
         local sleep  = 500
@@ -69,7 +49,6 @@ Citizen.CreateThread(function()
                 if zone.shape == 'circle' then
                     local dist = #(coords - zone.coords)
                     inside = dist < zone.radius
-
                 elseif zone.shape == 'box' then
                     inside = IsPointInAngledArea(
                         coords.x, coords.y, coords.z,
@@ -88,7 +67,6 @@ Citizen.CreateThread(function()
                     inZone = zone
                     sleep  = 0
 
-                    -- Marker
                     if zone.marker then
                         local m = zone.marker
                         local c = m.color or { r=59, g=130, b=246, a=120 }
@@ -104,15 +82,15 @@ Citizen.CreateThread(function()
                         )
                     end
 
-                    -- Hint d'interaction
                     if zone.hint then
                         BeginTextCommandDisplayHelp('STRING')
                         AddTextComponentSubstringPlayerName(zone.hint)
                         EndTextCommandDisplayHelp(0, false, true, -1)
                     end
 
-                    -- Déclenchement via E (control 38)
-                    if IsControlJustReleased(0, 38) then
+                    -- FIX: On n'ouvre le menu depuis une zone que si le menu n'est pas déjà ouvert
+                    -- et que le curseur n'est pas actif (le curseur a sa propre logique)
+                    if IsControlJustReleased(0, 38) and not IsMenuOpen() and not IsCursorActive() then
                         local sw, sh = GetActiveScreenResolution()
                         OpenContextMenu(sw / 2, sh / 2, zone.items, zone.title or 'Zone')
                     end
@@ -121,7 +99,6 @@ Citizen.CreateThread(function()
             end
         end
 
-        -- Notif NUI changement de zone
         if inZone ~= activeZone then
             activeZone = inZone
             SendNUIMessage({
@@ -138,6 +115,5 @@ Citizen.CreateThread(function()
     end
 end)
 
--- ─── Exports ─────────────────────────────────────────────────────────────────
 exports('RegisterMenuZone', RegisterMenuZone)
 exports('RemoveMenuZone',   RemoveMenuZone)

@@ -18,6 +18,9 @@ const SUBMENU_VARIANTS = {
   exit:    { opacity: 0, x: -5,  scale: 0.98, transition: { duration: 0.1 } },
 }
 
+// Délai suffisant pour traverser le gap entre item et sous-menu
+const CLOSE_DELAY = 200
+
 const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
   const [open,     setOpen]     = useState(false)
   const [openLeft, setOpenLeft] = useState(false)
@@ -40,35 +43,69 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
   }, [open])
 
   const cancelClose = useCallback(() => {
-    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null }
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
   }, [])
 
   const scheduleClose = useCallback(() => {
     cancelClose()
-    closeTimerRef.current = setTimeout(() => setOpen(false), 120)
+    closeTimerRef.current = setTimeout(() => setOpen(false), CLOSE_DELAY)
   }, [cancelClose])
 
-  useEffect(() => () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current) }, [])
+  useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+  }, [])
 
   const handleClick = useCallback(async () => {
     if (item.disabled) return
-    if (item.submenu && item.submenu.length > 0) { setOpen(p => !p); return }
-    if (item.action) { try { await item.action() } catch (e) { console.error(e) } }
+    if (item.submenu && item.submenu.length > 0) {
+      setOpen(p => !p)
+      return
+    }
+    if (item.action) {
+      try { await item.action() } catch (e) { console.error(e) }
+    }
     await sendNui('menuAction', { id: item.id })
     onClose()
   }, [item, onClose])
 
   const handleMouseEnter = useCallback(() => {
-    if (item.submenu?.length) { cancelClose(); setOpen(true) }
+    if (item.submenu?.length) {
+      cancelClose()
+      setOpen(true)
+    }
   }, [item.submenu, cancelClose])
 
   const handleMouseLeave = useCallback(() => {
     if (item.submenu?.length) scheduleClose()
   }, [item.submenu, scheduleClose])
 
-  const subStyle: React.CSSProperties = openLeft
-    ? { right: 'calc(100% + 4px)', left: 'auto', top: '-4px' }
-    : { left: 'calc(100% + 4px)',  top: '-4px' }
+  // Position du sous-menu
+  const subLeft  = openLeft ? 'auto' : 'calc(100% + 2px)'
+  const subRight = openLeft ? 'calc(100% + 2px)' : 'auto'
+
+  const subStyle: React.CSSProperties = {
+    left:  subLeft,
+    right: subRight,
+    top:   '-4px',
+  }
+
+  // FIX: Bridge invisible qui couvre le gap entre .cm-item et .cm-sub
+  // Empêche le mouseLeave de se déclencher quand on traverse ce gap
+  const bridgeStyle: React.CSSProperties = {
+    position: 'absolute',
+    top:      0,
+    bottom:   0,
+    width:    '8px', // couvre le gap de 2px + marge de sécurité
+    zIndex:   99,
+    // À gauche ou à droite selon l'ouverture
+    ...(openLeft
+      ? { right: 'calc(100% + 2px)', left: 'auto' }
+      : { left:  'calc(100% + 2px)', right: 'auto' }
+    ),
+  }
 
   if ('checked' in item) {
     return (
@@ -114,7 +151,9 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
         </div>
 
         <div className="cm-item__right">
-          {item.badge && <span className="cm-item__badge" style={badgeStyle}>{item.badge}</span>}
+          {item.badge && (
+            <span className="cm-item__badge" style={badgeStyle}>{item.badge}</span>
+          )}
           {item.submenu && item.submenu.length > 0 && (
             <span className={`cm-item__arrow${open ? ' cm-item__arrow--open' : ''}`}>
               <ChevronRight size={14} />
@@ -122,6 +161,15 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
           )}
         </div>
       </div>
+
+      {/* FIX: Bridge invisible pour combler le gap item → sous-menu */}
+      {item.submenu && item.submenu.length > 0 && open && (
+        <div
+          style={bridgeStyle}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+        />
+      )}
 
       {item.submenu && item.submenu.length > 0 && depth < 6 && (
         <AnimatePresence>

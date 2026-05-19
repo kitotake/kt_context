@@ -1,16 +1,15 @@
 -- =============================================
--- MENU CONTEXTUEL — PRINCIPAL
+-- MENU CONTEXTUEL — PRINCIPAL — FIXED
 -- =============================================
 
-local isMenuOpen    = false
-local menuHistory   = {}   -- pile pour la navigation "retour"
+local isMenuOpen  = false
+local menuHistory = {}
 
 -- ─── Ouverture ──────────────────────────────────────────────────────────────
----@param x        number   Position X écran (px)
----@param y        number   Position Y écran (px)
----@param items    table    Liste d'items (voir types NUI)
----@param title    string?  Titre affiché dans le header
----@param options  table?   {theme, animate, noHistory}
+-- FIX: On ne touche plus à SetNuiFocus ici.
+-- Le focus est géré UNIQUEMENT par cursor.lua (mode curseur).
+-- Si le menu est ouvert depuis une zone (touche E) sans curseur actif,
+-- on gère le focus nous-mêmes mais on le redonne au curseur à la fermeture.
 function OpenContextMenu(x, y, items, title, options)
     if isMenuOpen then
         CloseContextMenu()
@@ -23,7 +22,6 @@ function OpenContextMenu(x, y, items, title, options)
 
     options = options or {}
 
-    -- Validation légère
     local ok, reason = Validators.MenuItems(items)
     if not ok then
         print('[KT Context] Items invalides: ' .. reason)
@@ -31,7 +29,12 @@ function OpenContextMenu(x, y, items, title, options)
     end
 
     isMenuOpen = true
-    SetNuiFocus(true, true)
+
+    -- FIX: Si le curseur est actif, le focus NUI est déjà activé par cursor.lua.
+    -- On ne l'active pas une 2ème fois pour éviter de reset l'état du curseur.
+    if not IsCursorActive() then
+        SetNuiFocus(true, true)
+    end
 
     SendNUIMessage({
         type = 'openContextMenu',
@@ -53,8 +56,14 @@ function CloseContextMenu()
     if not isMenuOpen then return end
     isMenuOpen = false
     menuHistory = {}
-    SetNuiFocus(false, false)
+
     SendNUIMessage({ type = 'closeContextMenu' })
+
+    -- FIX: On ne retire le focus NUI que si le curseur n'est PAS actif.
+    -- Si le curseur est actif, cursor.lua gère le focus.
+    if not IsCursorActive() then
+        SetNuiFocus(false, false)
+    end
 end
 
 -- ─── Statut ─────────────────────────────────────────────────────────────────
@@ -68,6 +77,7 @@ AddEventHandler('onResourceStop', function(resourceName)
         isMenuOpen = false
         menuHistory = {}
         SetNuiFocus(false, false)
+        SetNuiFocusKeepInput(false)
     end
 end)
 
@@ -76,6 +86,7 @@ AddEventHandler('playerSpawned', function()
         isMenuOpen = false
         menuHistory = {}
         SetNuiFocus(false, false)
+        SetNuiFocusKeepInput(false)
         SendNUIMessage({ type = 'closeContextMenu' })
     end
 end)
@@ -83,7 +94,6 @@ end)
 -- ─── Gestionnaires d'actions ─────────────────────────────────────────────────
 local actionHandlers = {
 
-    -- Inventaire
     inventory = function()
         if GetResourceState('kt_inventory') == 'started' then
             TriggerEvent('kt_inventory:openInventory')
@@ -94,7 +104,6 @@ local actionHandlers = {
         TriggerEvent('kt_phone:open')
     end,
 
-    -- Animations joueur
     wave = function()
         local ped = PlayerPedId()
         RequestAnimDict('gestures@m@standing@casual')
@@ -125,7 +134,10 @@ local actionHandlers = {
         ClearPedTasks(PlayerPedId())
     end,
 
-    -- Véhicule
+    stop = function()
+        ClearPedTasks(PlayerPedId())
+    end,
+
     veh_lock = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
@@ -159,7 +171,6 @@ local actionHandlers = {
         if veh ~= 0 then for i = 0, 3 do RollDownWindow(veh, i) end end
     end,
 
-    -- Admin
     adm_coords_self = function()
         local coords = GetEntityCoords(PlayerPedId())
         ShowNotification(('📍 %s'):format(FormatCoords(coords)), 'info')
@@ -264,12 +275,10 @@ RegisterNUICallback('menuAction', function(data, cb)
         cb('error')
         return
     end
-
     local handler = actionHandlers[data.id]
     if handler then
         handler()
     else
-        -- Événement générique pour les handlers externes
         TriggerEvent('kt_context:action', data.id, data)
     end
     cb('ok')
@@ -278,12 +287,18 @@ end)
 RegisterNUICallback('menuClosed', function(_, cb)
     isMenuOpen = false
     menuHistory = {}
-    SetNuiFocus(false, false)
+    -- FIX: même logique — ne retire le focus que si le curseur n'est pas actif
+    if not IsCursorActive() then
+        SetNuiFocus(false, false)
+    end
     cb('ok')
 end)
 
 -- ─── Blocage des contrôles quand le menu est ouvert ──────────────────────────
-local BLOCKED_CONTROLS = { 1, 2, 24, 25, 142, 18, 322, 106, 68 }
+-- FIX: retiré les contrôles 1 et 2 (caméra) du blocage ici,
+-- cursor.lua les bloque déjà quand cursorActive = true.
+-- On bloque seulement les actions de gameplay qui ne doivent pas passer.
+local BLOCKED_CONTROLS = { 24, 25, 142, 18, 322, 106, 68 }
 
 Citizen.CreateThread(function()
     while true do
