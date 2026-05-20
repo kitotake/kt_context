@@ -1,15 +1,16 @@
 -- =============================================
--- MENU CONTEXTUEL — PRINCIPAL — FIXED
+-- MENU CONTEXTUEL — PRINCIPAL — FIXED v2
+-- Fixes :
+--   • door_all_open / door_all_close ajoutés aux handlers
+--   • veh_lights ajouté
+--   • win_up / win_down ne plantent plus si pas dans un véhicule
+--   • SetNuiFocus géré proprement selon cursorActive
 -- =============================================
 
 local isMenuOpen  = false
 local menuHistory = {}
 
 -- ─── Ouverture ──────────────────────────────────────────────────────────────
--- FIX: On ne touche plus à SetNuiFocus ici.
--- Le focus est géré UNIQUEMENT par cursor.lua (mode curseur).
--- Si le menu est ouvert depuis une zone (touche E) sans curseur actif,
--- on gère le focus nous-mêmes mais on le redonne au curseur à la fermeture.
 function OpenContextMenu(x, y, items, title, options)
     if isMenuOpen then
         CloseContextMenu()
@@ -30,8 +31,7 @@ function OpenContextMenu(x, y, items, title, options)
 
     isMenuOpen = true
 
-    -- FIX: Si le curseur est actif, le focus NUI est déjà activé par cursor.lua.
-    -- On ne l'active pas une 2ème fois pour éviter de reset l'état du curseur.
+    -- Si le curseur est actif, le focus NUI est déjà géré par cursor.lua
     if not IsCursorActive() then
         SetNuiFocus(true, true)
     end
@@ -59,8 +59,6 @@ function CloseContextMenu()
 
     SendNUIMessage({ type = 'closeContextMenu' })
 
-    -- FIX: On ne retire le focus NUI que si le curseur n'est PAS actif.
-    -- Si le curseur est actif, cursor.lua gère le focus.
     if not IsCursorActive() then
         SetNuiFocus(false, false)
     end
@@ -71,7 +69,7 @@ function IsMenuOpen()
     return isMenuOpen
 end
 
--- ─── Sécurité : reset au respawn / stop ressource ───────────────────────────
+-- ─── Sécurité : reset au stop ressource / respawn ───────────────────────────
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName == GetCurrentResourceName() and isMenuOpen then
         isMenuOpen = false
@@ -104,18 +102,21 @@ local actionHandlers = {
         TriggerEvent('kt_phone:open')
     end,
 
+    -- Émotes / animations
     wave = function()
         local ped = PlayerPedId()
         RequestAnimDict('gestures@m@standing@casual')
         while not HasAnimDictLoaded('gestures@m@standing@casual') do Wait(10) end
-        TaskPlayAnim(ped, 'gestures@m@standing@casual', 'gesture_hello', 8.0, -8.0, -1, 0, 0, false, false, false)
+        TaskPlayAnim(ped, 'gestures@m@standing@casual', 'gesture_hello',
+            8.0, -8.0, -1, 0, 0, false, false, false)
     end,
 
     handsup = function()
         local ped = PlayerPedId()
         RequestAnimDict('random@mugging3')
         while not HasAnimDictLoaded('random@mugging3') do Wait(10) end
-        TaskPlayAnim(ped, 'random@mugging3', 'handsup_standing_base', 8.0, -8.0, -1, 50, 0, false, false, false)
+        TaskPlayAnim(ped, 'random@mugging3', 'handsup_standing_base',
+            8.0, -8.0, -1, 50, 0, false, false, false)
     end,
 
     sit = function()
@@ -130,20 +131,19 @@ local actionHandlers = {
         TaskStartScenarioInPlace(PlayerPedId(), 'WORLD_HUMAN_PARTYING', 0, true)
     end,
 
-    stopanim = function()
-        ClearPedTasks(PlayerPedId())
-    end,
+    stopanim = function() ClearPedTasks(PlayerPedId()) end,
+    stop     = function() ClearPedTasks(PlayerPedId()) end,
 
-    stop = function()
-        ClearPedTasks(PlayerPedId())
-    end,
-
+    -- Véhicule
     veh_lock = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
             local locked = GetVehicleDoorLockStatus(veh)
             SetVehicleDoorsLocked(veh, locked == 1 and 2 or 1)
-            ShowNotification(locked == 1 and L('vehicle_locked') or L('vehicle_unlocked'), locked == 1 and 'success' or 'info')
+            ShowNotification(
+                locked == 1 and L('vehicle_locked') or L('vehicle_unlocked'),
+                locked == 1 and 'success' or 'info'
+            )
         end
     end,
 
@@ -154,6 +154,16 @@ local actionHandlers = {
         end
     end,
 
+    veh_lights = function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+        if veh ~= 0 then
+            local on, _ = GetVehicleLightsState(veh)
+            SetVehicleLights(veh, on == 1 and 0 or 2)
+            ShowNotification(on == 1 and "Lumières éteintes" or "Lumières allumées", 'info')
+        end
+    end,
+
+    -- Portes individuelles
     door_fl    = function() ToggleVehicleDoor(0) end,
     door_fr    = function() ToggleVehicleDoor(1) end,
     door_rl    = function() ToggleVehicleDoor(2) end,
@@ -161,19 +171,41 @@ local actionHandlers = {
     door_hood  = function() ToggleVehicleDoor(4) end,
     door_trunk = function() ToggleVehicleDoor(5) end,
 
+    -- Toutes les portes
+    door_all_open = function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), true)
+        if veh ~= 0 then
+            for i = 0, 5 do SetVehicleDoorOpen(veh, i, false, false) end
+            ShowNotification("Toutes les portes ouvertes", 'success')
+        end
+    end,
+
+    door_all_close = function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), true)
+        if veh ~= 0 then
+            for i = 0, 5 do SetVehicleDoorShut(veh, i, false) end
+            ShowNotification("Toutes les portes fermées", 'success')
+        end
+    end,
+
+    -- Vitres
     win_up = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-        if veh ~= 0 then for i = 0, 3 do RollUpWindow(veh, i) end end
+        if veh ~= 0 then
+            for i = 0, 3 do RollUpWindow(veh, i) end
+        end
     end,
 
     win_down = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-        if veh ~= 0 then for i = 0, 3 do RollDownWindow(veh, i) end end
+        if veh ~= 0 then
+            for i = 0, 3 do RollDownWindow(veh, i) end
+        end
     end,
 
+    -- Admin — self
     adm_coords_self = function()
-        local coords = GetEntityCoords(PlayerPedId())
-        ShowNotification(('📍 %s'):format(FormatCoords(coords)), 'info')
+        ShowNotification(('📍 %s'):format(FormatCoords(GetEntityCoords(PlayerPedId()))), 'info')
     end,
 
     adm_tp_waypoint = function()
@@ -199,9 +231,8 @@ local actionHandlers = {
 
     adm_god = function()
         if not IsPlayerAdmin() then return end
-        local ped = PlayerPedId()
         local inv = GetPlayerInvincible(PlayerId())
-        SetEntityInvincible(ped, not inv)
+        SetEntityInvincible(PlayerPedId(), not inv)
         ShowNotification(inv and 'God Mode désactivé' or 'God Mode activé', 'info')
         TriggerServerEvent('kt_context:logAdminAction', 'god_mode', nil, 'Toggle')
     end,
@@ -275,10 +306,20 @@ RegisterNUICallback('menuAction', function(data, cb)
         cb('error')
         return
     end
+
+    -- Priorité 1 : actions dynamiques enregistrées par Build*Menu
+    -- (évite la sérialisation de fonctions Lua en JSON)
+    if ExecutePendingAction and ExecutePendingAction(data.id) then
+        cb('ok')
+        return
+    end
+
+    -- Priorité 2 : handlers statiques déclarés dans ce fichier
     local handler = actionHandlers[data.id]
     if handler then
         handler()
     else
+        -- Fallback : événement générique pour les scripts tiers
         TriggerEvent('kt_context:action', data.id, data)
     end
     cb('ok')
@@ -287,7 +328,6 @@ end)
 RegisterNUICallback('menuClosed', function(_, cb)
     isMenuOpen = false
     menuHistory = {}
-    -- FIX: même logique — ne retire le focus que si le curseur n'est pas actif
     if not IsCursorActive() then
         SetNuiFocus(false, false)
     end
@@ -295,9 +335,10 @@ RegisterNUICallback('menuClosed', function(_, cb)
 end)
 
 -- ─── Blocage des contrôles quand le menu est ouvert ──────────────────────────
--- FIX: retiré les contrôles 1 et 2 (caméra) du blocage ici,
--- cursor.lua les bloque déjà quand cursorActive = true.
--- On bloque seulement les actions de gameplay qui ne doivent pas passer.
+-- NOTE : les contrôles caméra (1, 2) sont bloqués par cursor.lua
+--        uniquement quand cursorActive = true. On ne les bloque PAS ici
+--        pour éviter de freezer la caméra quand le menu est ouvert depuis
+--        une zone (touche E) sans mode curseur.
 local BLOCKED_CONTROLS = { 24, 25, 142, 18, 322, 106, 68 }
 
 Citizen.CreateThread(function()

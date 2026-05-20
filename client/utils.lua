@@ -1,5 +1,10 @@
 -- =============================================
 -- UTILS CLIENT
+-- FIX : IsPlayerAdmin() et GetAdminRole() sont
+--       définis dans sync.lua (DB) et dans client/utils.lua (ACE).
+--       On conserve uniquement la version ACE ici
+--       ET on la rend compatible avec sync.lua :
+--       si Permissions est chargé → on l'utilise en priorité.
 -- =============================================
 
 -- Notification visuelle
@@ -10,18 +15,24 @@ function ShowNotification(message, notifType)
     DrawNotification(false, true)
 end
 
--- Véhicule le plus proche
-function GetClosestVehicle(coords)
-    coords = coords or GetEntityCoords(PlayerPedId())
-    local vehicles = GetGamePool('CVehicle')
-    local closestDist, closestVeh = -1, -1
+-- Véhicule le plus proche (usage général, signature différente de la version locale de cursor.lua)
+function GetClosestVehicleNearby(coords, maxDist)
+    coords  = coords  or GetEntityCoords(PlayerPedId())
+    maxDist = maxDist or (Config.InteractionDistance or 5.0)
+    local vehicles    = GetGamePool('CVehicle')
+    local closestDist = maxDist + 1
+    local closestVeh  = -1
     for _, veh in ipairs(vehicles) do
         local d = #(GetEntityCoords(veh) - coords)
-        if closestDist == -1 or d < closestDist then
-            closestVeh, closestDist = veh, d
+        if d < closestDist then
+            closestVeh  = veh
+            closestDist = d
         end
     end
-    return closestVeh, closestDist
+    if closestVeh ~= -1 and closestDist <= maxDist then
+        return closestVeh, closestDist
+    end
+    return -1, math.huge
 end
 
 -- Joueur le plus proche
@@ -46,7 +57,7 @@ end
 function Draw3DText(coords, text)
     local onScreen, sx, sy = World3dToScreen2d(coords.x, coords.y, coords.z)
     local px, py, pz = table.unpack(GetGameplayCamCoords())
-    local dist = #(vector3(px, py, pz) - coords)
+    local dist  = #(vector3(px, py, pz) - coords)
     local scale = (1 / dist) * 2
     local fov   = (1 / GetGameplayCamFov()) * 100
     scale = scale * fov
@@ -78,15 +89,32 @@ function ToggleVehicleDoor(doorIndex)
     end
 end
 
--- Vérification rôle admin
+-- ─── Permissions ──────────────────────────────────────────────────────────────
+-- FIX : sync.lua charge les permissions depuis la DB (via oxmysql).
+--       utils.lua avait sa propre version basée sur IsPlayerAceAllowed.
+--       On unifie : on utilise Permissions (sync.lua) si disponible,
+--       sinon on fallback sur les ACE. Ainsi les deux systèmes coexistent
+--       sans conflit quelle que soit l'ordre de chargement.
+
 function IsPlayerAdmin()
-    for _, ace in pairs(Config.AdminAces) do
+    -- Priorité 1 : groupe DB synchronisé par sync.lua
+    if Permissions and Permissions.group then
+        local h = { user = 1, moderator = 2, admin = 3, founder = 4 }
+        return (h[Permissions.group] or 0) >= h['admin']
+    end
+    -- Fallback : ACE Allowlist
+    for _, ace in pairs(Config.AdminGroups or Config.AdminAces or {}) do
         if IsPlayerAceAllowed(PlayerId(), ace) then return true end
     end
     return false
 end
 
 function GetAdminRole()
+    -- Priorité 1 : groupe DB
+    if Permissions and Permissions.group and Permissions.group ~= 'user' then
+        return Permissions.group
+    end
+    -- Fallback ACE
     if IsPlayerAceAllowed(PlayerId(), 'founder')   then return 'founder'   end
     if IsPlayerAceAllowed(PlayerId(), 'admin')     then return 'admin'     end
     if IsPlayerAceAllowed(PlayerId(), 'moderator') then return 'moderator' end
