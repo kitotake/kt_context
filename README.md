@@ -1,217 +1,166 @@
-# KT Context Menu v2.0
+# KT Context Menu v3.1 — Changelog & Documentation
 
-Système de menu contextuel moderne pour FiveM — React 18 + TypeScript + SCSS + Framer Motion.
+## Bugs corrigés
+
+### Critiques
+- **`rotation_server.lua`** — appelait des natives CLIENT côté serveur (`GetEntityCoords`, `PlayerPedId`, `CreateObject`…). Désormais le serveur ne fait que logger et valider, tout le placement/rotation est 100% côté client.
+- **`config_rotation.lua`** — conflitait avec `config.lua` (double `Config = {}`). Fusionné dans `shared/config.lua` sous `Config.Rotation`.
+- **`server/permissions.lua`** — `AddEventHandler('playerJoining')` n'est pas un événement FiveM natif. Corrigé en `playerConnecting` + `onServerResourceStart` pour les joueurs déjà connectés.
+- **Double `IsPlayerAdmin()`** — définie dans `utils.lua` ET `sync.lua`, causait un conflit selon l'ordre de chargement. `utils.lua` définit maintenant uniquement un alias temporaire, `sync.lua` écrase définitivement.
+- **`ContextMenu.scss`** importé mais remplacé par `menu.scss` — styles dupliqués supprimés.
+
+### Mineurs
+- `door_all_open` / `door_all_close` manquaient dans les handlers de `main.lua`
+- `veh_lights` manquait dans les handlers statiques
+- `win_up` / `win_down` plantaient si pas dans un véhicule
+- `useNuiEvent` — ref handler potentiellement stale, corrigé avec `useRef`
 
 ---
 
-## 🚀 Installation
+## Système de rotation des props
+
+### Placement (limité à 3m)
+```lua
+-- Via commande
+/placeprop [nom_du_model]   -- place devant le joueur (max 3m)
+/deleteprop                  -- supprime le prop actif
+/propmenu                    -- ouvre le menu de gestion
+/deletenearby                -- supprime tous les props proches (admin/staff)
+
+-- Via export
+exports['kt_context']:PlaceProp('prop_mp_barrier_01a')
+exports['kt_context']:DeleteProp()
+exports['kt_context']:OpenPropMenu()
+```
+
+### Menu de gestion du prop
+Rotation par axe (**X Pitch**, **Y Roll**, **Z Yaw**) par pas de 15° (configurable).
+- Reset rotation
+- Rotation automatique (tourne en continu sur l'axe choisi)
+- Geler / Dégeler la position
+- Suppression avec confirmation
+
+### Config
+```lua
+Config.Limits.PropMaxDistance = 3.0    -- m depuis le joueur (défaut 3m)
+Config.Limits.PropMaxHeight   = 2.0    -- écart vertical max
+Config.Limits.PropRotateStep  = 15.0   -- degrés par clic
+Config.Limits.PropMaxActive   = 1      -- 1 prop actif max par joueur
+```
+
+---
+
+## Limites d'utilisation
+
+### Interactions PNJ
+```lua
+Config.Limits.NpcCooldown    = 5000   -- 5s entre deux interactions
+Config.Limits.NpcMaxDistance = 3.0    -- portée max 3m
+```
+
+### Animations
+```lua
+Config.Limits.AnimCooldown       = 2000  -- 2s entre deux animations
+Config.Limits.AnimBlockInVehicle = true  -- interdit en véhicule
+```
+
+### Déplacement pendant un menu
+Le menu **se ferme automatiquement** si le joueur s'éloigne de plus de **3m** depuis son ouverture.
+```lua
+Config.Limits.MaxInteractMoveDistance = 3.0  -- m (défaut 3m)
+```
+
+---
+
+## Système Admin / Staff
+
+### Hiérarchie
+```
+user < staff < moderator < admin < founder
+```
+
+### Permissions par action
+| Action                  | Minimum requis |
+|-------------------------|----------------|
+| Heal/Armor soi-même     | staff          |
+| Réparer un véhicule     | staff          |
+| TP vers un joueur       | admin          |
+| Supprimer une entité    | admin          |
+| Kick un joueur          | admin          |
+| God Mode / Invisible    | admin          |
+| Placer des props        | admin          |
+| Changer un groupe       | admin          |
+
+### Confirmation obligatoire (admin)
+La suppression d'entités et le kick demandent une confirmation dans le menu.
+```lua
+Config.Limits.AdminConfirmDelete = true   -- activer/désactiver
+```
+
+### Rate limiting serveur
+```lua
+Config.Limits.ServerActionCooldown = 500  -- ms min entre events serveur
+```
+
+---
+
+## Nouvelles features
+
+### Système de notifications NUI
+Remplace `DrawNotification` natif GTA par des notifications élégantes dans le coin bas-droite.
+```lua
+ShowNotification('Message', 'success')  -- info | success | warning | error
+```
+Côté Lua, `ShowNotification` envoie maintenant automatiquement un message NUI + le DrawNotification natif en fallback.
+
+### Cooldown global
+```lua
+HasCooldown('ma_cle')              -- true si cooldown actif
+SetCooldown('ma_cle', 3000)        -- activer pour 3000ms
+ClearCooldown('ma_cle')            -- vider manuellement
+```
+
+### Staff vs Admin
+`IsPlayerStaff()` disponible côté client — retourne `true` pour staff, moderator, admin, founder.
+
+---
+
+## Installation
 
 ```bash
-# 1. Copier le dossier dans resources/
-cp -r kt_context /chemin/vers/resources/
-
-# 2. Compiler le frontend (nécessite Node.js 18+)
 cd kt_context/web
 npm install
 npm run build
+```
 
-# 3. Ajouter dans server.cfg
+```
+# server.cfg
 ensure kt_context
 ```
 
 ---
 
-## ⌨️ Contrôles en jeu
-
-| Touche | Action |
-|--------|--------|
-| **ALT GAUCHE** (maintenu) | Active le curseur |
-| **Clic gauche** (curseur actif) | Ouvre le menu sur l'entité cliquée |
-| **Z** | Ouvre le menu radial |
-| **X** | Menu émotes rapides |
-| **L** | Verrouiller/déverrouiller véhicule |
-| **E** | Interagir avec une zone |
-| **Échap** | Fermer le menu |
-
----
-
-## 📖 Utilisation depuis un script Lua
-
-### Ouvrir un menu à une position précise
-
-```lua
--- Ouvre le menu aux coordonnées écran (pixels)
-exports['kt_context']:OpenContextMenu(x, y, items, title)
-
--- Exemple : menu au centre de l'écran
-local sw, sh = GetActiveScreenResolution()
-exports['kt_context']:OpenContextMenu(sw/2, sh/2, {
-    { id = "action_1", label = "Mon action",  icon = "Zap"   },
-    { id = "action_2", label = "Autre chose", icon = "Star",
-      submenu = {
-          { id = "sub_1", label = "Sous-option 1", icon = "ArrowRight" },
-          { id = "sub_2", label = "Sous-option 2", icon = "ArrowRight" },
-      }
-    },
-    { id = "_div", divider = true, label = "" },   -- Séparateur
-    { id = "danger", label = "Action rouge", icon = "Trash2", variant = "danger" },
-}, "Mon Menu")
-```
-
-### Fermer le menu
-
-```lua
-exports['kt_context']:CloseContextMenu()
-```
-
-### Vérifier si le menu est ouvert
-
-```lua
-local open = exports['kt_context']:IsMenuOpen()
-```
-
-### Écouter les actions (client)
-
-```lua
--- Quand l'utilisateur clique sur un item, le NUI callback "menuAction" est déclenché
--- Vous pouvez écouter l'événement générique :
-AddEventHandler("kt_context:action", function(itemId, data)
-    if itemId == "mon_action" then
-        -- faire quelque chose
-    end
-end)
-```
-
----
-
-## 🗺️ Zones interactives
-
-```lua
--- Créer une zone circulaire
-exports['kt_context']:RegisterMenuZone({
-    id     = "ma_zone",
-    coords = vector3(150.15, -1040.9, 29.37),
-    radius = 4.0,
-    shape  = "circle",         -- "circle" ou "box"
-    title  = "🏦 Banque",
-    hint   = "Appuyez sur ~INPUT_CONTEXT~ pour interagir",
-    marker = {
-        type  = 2,
-        color = { r=16, g=185, b=129, a=130 },
-        size  = vector3(4.0, 4.0, 0.3),
-    },
-    items = {
-        { id = "deposit",  label = "Déposer",  icon = "ArrowUpFromLine" },
-        { id = "withdraw", label = "Retirer",  icon = "ArrowDownToLine" },
-    },
-    -- Condition optionnelle pour afficher la zone
-    condition = function()
-        return true
-    end,
-})
-
--- Supprimer une zone
-exports['kt_context']:RemoveMenuZone("ma_zone")
-```
-
----
-
-## 🎨 Structure d'un item
-
-```lua
-{
-    id          = "unique_id",        -- Identifiant unique (requis)
-    label       = "Texte affiché",    -- Libellé (requis)
-    icon        = "Zap",              -- Nom d'icône Lucide React
-    description = "Sous-texte",       -- Description en gris sous le label
-    disabled    = false,              -- Griser l'item
-    color       = "#ef4444",          -- Couleur de la bordure gauche (hex)
-    variant     = "danger",           -- "default"|"success"|"warning"|"danger"
-    badge       = "admin",            -- Badge texte (ex: rôle)
-    badgeColor  = "#f59e0b",          -- Couleur du badge
-    divider     = true,               -- Séparateur (ignorez les autres champs)
-    action      = function() end,     -- Callback local (optionnel)
-    submenu     = { ... },            -- Sous-menu (jusqu'à 6 niveaux)
-}
-```
-
----
-
-## 🔧 Icônes disponibles
-
-Le menu utilise **Lucide React**. Tous les noms d'icônes sont disponibles sur :
-👉 https://lucide.dev/icons/
-
-Exemples courants : `Zap`, `Star`, `Heart`, `Lock`, `LockOpen`, `Car`, `User`,
-`ShieldAlert`, `Trash2`, `MapPin`, `Navigation`, `DollarSign`, `Phone`, `Backpack`…
-
----
-
-## 🛡️ Détection admin
-
-Le menu détecte automatiquement si le joueur possède l'une des permissions ACE :
-- `admin`
-- `moderator`
-- `founder`
-
-Si c'est le cas, des options supplémentaires apparaissent en bas des menus d'entité
-(joueur, véhicule, objet) et du menu général.
-
-Pour configurer les rôles, éditez `config.lua` :
-
-```lua
-Config.AdminAces = {
-    admin     = 'admin',
-    moderator = 'moderator',
-    founder   = 'founder',
-}
-```
-
----
-
-## 📂 Structure du projet
+## Structure des fichiers modifiés
 
 ```
 kt_context/
-├── fxmanifest.lua
-├── config.lua
+├── shared/config.lua              ← Config fusionnée (rotation incluse)
 ├── client/
-│   ├── utils.lua           ← Fonctions utilitaires (chargé en 1er)
-│   ├── main.lua            ← Logique principale + exports
-│   ├── cursor.lua          ← Système curseur ALT + détection entités
-│   ├── zones.lua           ← Zones interactives
+│   ├── utils.lua                  ← +cooldowns, +IsPlayerStaff, -IsPlayerAdmin (alias)
+│   ├── sync.lua                   ← Source unique IsPlayerAdmin/GetAdminRole/IsPlayerStaff
+│   ├── main.lua                   ← +distance check 3m, +cooldown anims, +handlers prop
 │   └── alts_client/
-│       ├── keybinds.lua    ← Raccourcis clavier
-│       ├── quick_actions.lua← Actions rapides (véhicule, joueur, admin)
-│       └── radial_menu.lua ← Menu radial (touche Z)
+│       ├── entity_menus.lua       ← +cooldown NPC, +distance check, +confirmation admin
+│       ├── quick_actions.lua      ← +cooldowns anims, +IsPlayerStaff pour heal
+│       └── rotation_client.lua    ← REFAIT - 3m limit, menu, auto-rotate, cleanup
 ├── server/
-│   ├── main.lua
+│   ├── permissions.lua            ← FIX playerConnecting, +rate limiting, +onServerResourceStart
+│   ├── admin.lua                  ← +rate limiting, +staff checks
 │   └── alts_server/
-│       └── action_logs.lua ← Logs serveur
-└── web/
-    ├── src/
-    │   ├── components/
-    │   │   ├── ContextMenu.tsx   ← Menu principal avec Framer Motion
-    │   │   ├── MenuItemRow.tsx   ← Item + sous-menus récursifs
-    │   │   ├── Cursor.tsx        ← Curseur custom animé
-    │   │   └── DynamicIcon.tsx   ← Résolution dynamique Lucide
-    │   ├── hooks/
-    │   │   ├── useContextMenu.ts ← État + écoute NUI
-    │   │   ├── useCursor.ts      ← État curseur
-    │   │   └── useNuiEvent.ts    ← Listener messages NUI
-    │   ├── styles/
-    │   │   ├── global.scss
-    │   │   ├── variables.scss
-    │   │   └── menu.scss
-    │   ├── types/menu.types.ts
-    │   ├── utils/nui.ts
-    │   ├── App.tsx
-    │   └── main.tsx
-    └── build/              ← Généré par npm run build
+│       └── rotation_server.lua    ← REFAIT - plus de natives client côté serveur
+├── fxmanifest.lua                 ← +rotation_client, +rotation_server, +exports prop
+└── web/src/
+    ├── App.tsx                    ← +NotificationSystem
+    └── components/
+        └── NotificationSystem.tsx ← NOUVEAU - notifications NUI animées
 ```
-
----
-
-## 📝 Licence
-
-MIT — Libre d'utilisation et de modification.

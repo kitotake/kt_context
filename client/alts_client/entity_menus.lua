@@ -1,37 +1,62 @@
 -- =============================================
--- MODULE : MENUS ENTITÉS
--- Fournit BuildNpcMenu, BuildVehicleMenu,
--- BuildPropMenu, BuildAdminEntityMenu
---
--- FIX CRITIQUE : les champs `action = function()`
--- ne peuvent PAS être sérialisés en JSON par SendNUIMessage.
--- Solution : registre local _pendingActions[id] = fn
--- Les items passent uniquement des strings en JSON.
--- Le handler menuAction dans main.lua consulte ce registre.
+-- MODULE : MENUS ENTITÉS — v3.1 (fixed)
+-- 
+-- FIXES :
+--   • Cooldown NPC (Config.Limits.NpcCooldown)
+--   • Vérification distance portée PNJ (Config.Limits.NpcMaxDistance)
+--   • Cooldown animations (Config.Limits.AnimCooldown)
+--   • Bloc animations en véhicule (Config.Limits.AnimBlockInVehicle)
+--   • Confirmation avant suppression d'entité admin
 -- =============================================
 
--- ─── Registre d'actions dynamiques ───────────────────────────────────────────
--- Peuplé par Build*Menu, vidé à chaque ouverture de menu.
 _pendingActions = {}
 
 local function registerAction(id, fn)
     _pendingActions[id] = fn
-    return id   -- retourne l'id pour pouvoir l'utiliser inline
+    return id
 end
 
 local function clearPendingActions()
     _pendingActions = {}
 end
 
--- Appelé par main.lua depuis RegisterNUICallback('menuAction')
--- pour exécuter une action dynamique si elle existe.
 function ExecutePendingAction(id)
     local fn = _pendingActions[id]
-    if fn then
-        fn()
-        return true
-    end
+    if fn then fn(); return true end
     return false
+end
+
+-- ─── Helpers ─────────────────────────────────────────────────────────────────
+local function _checkNpcDistance(npcEntity)
+    local ped = PlayerPedId()
+    local dist = #(GetEntityCoords(ped) - GetEntityCoords(npcEntity))
+    if dist > (Config.Limits.NpcMaxDistance or 3.0) then
+        ShowNotification(L('npc_too_far'), 'warning')
+        return false
+    end
+    return true
+end
+
+local function _checkAnimCooldown()
+    if HasCooldown('anim_global') then
+        ShowNotification(L('cooldown_wait'), 'warning')
+        return false
+    end
+    if Config.Limits.AnimBlockInVehicle and IsPedInAnyVehicle(PlayerPedId(), false) then
+        ShowNotification(L('anim_vehicle'), 'warning')
+        return false
+    end
+    return true
+end
+
+local function _playAnim(dict, clip, flags)
+    if not _checkAnimCooldown() then return end
+    SetCooldown('anim_global', Config.Limits.AnimCooldown or 2000)
+    local ped = PlayerPedId()
+    RequestAnimDict(dict)
+    local t = 0
+    while not HasAnimDictLoaded(dict) do Wait(10); t = t + 10; if t > 5000 then return end end
+    TaskPlayAnim(ped, dict, clip, 8.0, -8.0, -1, flags or 0, 0, false, false, false)
 end
 
 -- ─── Véhicule ─────────────────────────────────────────────────────────────────
@@ -45,29 +70,28 @@ function BuildVehicleMenu(veh, locked, isAdmin)
     local plateText  = GetVehicleNumberPlateText(veh)
 
     table.insert(items, {
-        id          = "veh_info",
-        label       = "Informations",
-        icon        = "Info",
+        id          = 'veh_info',
+        label       = 'Informations',
+        icon        = 'Info',
         disabled    = true,
-        description = ("Moteur %d%% | Carrosserie %d%% | Essence %d%%"):format(
-                        engHealth, bodyHealth, fuel),
+        description = ('Moteur %d%% | Carrosserie %d%% | Essence %d%%'):format(engHealth, bodyHealth, fuel),
     })
 
     if plateText and #plateText > 0 then
         table.insert(items, {
-            id          = "veh_plate",
-            label       = "Plaque : " .. plateText,
-            icon        = "SquareDot",
-            disabled    = true,
+            id       = 'veh_plate',
+            label    = 'Plaque : ' .. plateText,
+            icon     = 'SquareDot',
+            disabled = true,
         })
     end
 
-    table.insert(items, { id = "_div_veh1", divider = true, label = "" })
+    table.insert(items, { id = '_div_veh1', divider = true, label = '' })
 
     table.insert(items, {
-        id    = "veh_lock",
-        label = locked and "Déverrouiller" or "Verrouiller",
-        icon  = locked and "LockOpen" or "Lock",
+        id    = 'veh_lock',
+        label = locked and 'Déverrouiller' or 'Verrouiller',
+        icon  = locked and 'LockOpen' or 'Lock',
     })
 
     local ped      = PlayerPedId()
@@ -75,47 +99,46 @@ function BuildVehicleMenu(veh, locked, isAdmin)
     local engineOn = GetIsVehicleEngineRunning(veh)
 
     table.insert(items, {
-        id       = "veh_engine",
-        label    = engineOn and "Éteindre le moteur" or "Allumer le moteur",
-        icon     = "Zap",
+        id       = 'veh_engine',
+        label    = engineOn and 'Éteindre le moteur' or 'Allumer le moteur',
+        icon     = 'Zap',
         disabled = not isDriver,
     })
 
-    -- Lumières : action enregistrée dans le registre, pas dans l'item
-    registerAction("veh_lights", function()
+    registerAction('veh_lights', function()
         local v = GetVehiclePedIsIn(PlayerPedId(), false)
         if v ~= 0 then
             local on, _ = GetVehicleLightsState(v)
             SetVehicleLights(v, on == 1 and 0 or 2)
-            ShowNotification(on == 1 and "Lumières éteintes" or "Lumières allumées", 'info')
+            ShowNotification(on == 1 and 'Lumières éteintes' or 'Lumières allumées', 'info')
         end
     end)
-    table.insert(items, { id = "veh_lights", label = "Lumières", icon = "Lightbulb" })
+    table.insert(items, { id = 'veh_lights', label = 'Lumières', icon = 'Lightbulb' })
 
     table.insert(items, {
-        id      = "veh_doors",
-        label   = "Portes",
-        icon    = "DoorOpen",
+        id      = 'veh_doors',
+        label   = 'Portes',
+        icon    = 'DoorOpen',
         submenu = {
-            { id = "door_fl",        label = "Avant gauche",   icon = "SquareDot"  },
-            { id = "door_fr",        label = "Avant droite",   icon = "SquareDot"  },
-            { id = "door_rl",        label = "Arrière gauche", icon = "SquareDot"  },
-            { id = "door_rr",        label = "Arrière droite", icon = "SquareDot"  },
-            { id = "door_hood",      label = "Capot",          icon = "SquareDot"  },
-            { id = "door_trunk",     label = "Coffre",         icon = "SquareDot"  },
-            { id = "_div_doors",     divider = true, label = "" },
-            { id = "door_all_open",  label = "Toutes ouvrir",  icon = "DoorOpen"   },
-            { id = "door_all_close", label = "Toutes fermer",  icon = "DoorClosed" },
+            { id = 'door_fl',        label = 'Avant gauche',   icon = 'SquareDot'  },
+            { id = 'door_fr',        label = 'Avant droite',   icon = 'SquareDot'  },
+            { id = 'door_rl',        label = 'Arrière gauche', icon = 'SquareDot'  },
+            { id = 'door_rr',        label = 'Arrière droite', icon = 'SquareDot'  },
+            { id = 'door_hood',      label = 'Capot',          icon = 'SquareDot'  },
+            { id = 'door_trunk',     label = 'Coffre',         icon = 'SquareDot'  },
+            { id = '_div_doors',     divider = true, label = '' },
+            { id = 'door_all_open',  label = 'Toutes ouvrir',  icon = 'DoorOpen'   },
+            { id = 'door_all_close', label = 'Toutes fermer',  icon = 'DoorClosed' },
         },
     })
 
     table.insert(items, {
-        id      = "veh_windows",
-        label   = "Vitres",
-        icon    = "Maximize2",
+        id      = 'veh_windows',
+        label   = 'Vitres',
+        icon    = 'Maximize2',
         submenu = {
-            { id = "win_down", label = "Toutes descendre", icon = "ArrowDown" },
-            { id = "win_up",   label = "Toutes monter",    icon = "ArrowUp"   },
+            { id = 'win_down', label = 'Toutes descendre', icon = 'ArrowDown' },
+            { id = 'win_up',   label = 'Toutes monter',    icon = 'ArrowUp'   },
         },
     })
 
@@ -123,20 +146,43 @@ function BuildVehicleMenu(veh, locked, isAdmin)
 end
 
 -- ─── PNJ ──────────────────────────────────────────────────────────────────────
-function BuildNpcMenu(ped, isAdmin)
+function BuildNpcMenu(npcEntity, isAdmin)
     clearPendingActions()
-    local hp = math.max(0, math.floor(GetEntityHealth(ped) - 100))
+    local hp = math.max(0, math.floor(GetEntityHealth(npcEntity) - 100))
+
+    -- Drag avec cooldown + distance check
+    registerAction('npc_drag', function()
+        if HasCooldown('npc_interact') then
+            ShowNotification(L('cooldown_wait'), 'warning')
+            return
+        end
+        if not _checkNpcDistance(npcEntity) then return end
+        SetCooldown('npc_interact', Config.Limits.NpcCooldown or 5000)
+        ShowNotification('🫳 Vous traînez le PNJ', 'info')
+        -- TODO: logique de drag
+    end)
+
+    registerAction('npc_interact', function()
+        if HasCooldown('npc_interact') then
+            ShowNotification(L('cooldown_wait'), 'warning')
+            return
+        end
+        if not _checkNpcDistance(npcEntity) then return end
+        SetCooldown('npc_interact', Config.Limits.NpcCooldown or 5000)
+        ShowNotification('💬 Interaction avec le PNJ', 'info')
+    end)
+
     return {
         {
-            id          = "npc_info",
-            label       = "PNJ",
-            icon        = "Bot",
+            id          = 'npc_info',
+            label       = 'PNJ',
+            icon        = 'Bot',
             disabled    = true,
-            description = ("Santé : %d%%"):format(hp),
+            description = ('Santé : %d%%  |  Portée : %.1fm'):format(hp, #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(npcEntity))),
         },
-        { id = "_div_npc1", divider = true, label = "" },
-        { id = "npc_drag",    label = "Traîner",   icon = "Hand"          },
-        { id = "npc_interact",label = "Interagir", icon = "MessageCircle" },
+        { id = '_div_npc1', divider = true, label = '' },
+        { id = 'npc_drag',     label = 'Traîner',   icon = 'Hand',          description = 'Cooldown 5s' },
+        { id = 'npc_interact', label = 'Interagir', icon = 'MessageCircle', description = 'Cooldown 5s' },
     }
 end
 
@@ -144,48 +190,56 @@ end
 function BuildPlayerMenu(serverId, name, isAdmin)
     clearPendingActions()
 
-    -- Actions joueur spécifiques : enregistrées dans le registre avec l'id serveur capturé
-    registerAction("pl_tp_to", function()
+    registerAction('pl_tp_to', function()
+        if not isAdmin then ShowNotification(L('access_denied'), 'error'); return end
         local playerId = GetPlayerFromServerId(serverId)
         if playerId ~= -1 then
             local targetPed = GetPlayerPed(playerId)
             local c = GetEntityCoords(targetPed)
             SetEntityCoords(PlayerPedId(), c.x + 1.5, c.y, c.z)
-            ShowNotification("Téléporté vers " .. name, 'success')
+            ShowNotification('Téléporté vers ' .. name, 'success')
+            TriggerServerEvent('kt_context:logAdminAction', 'tp_to_player', serverId, 'TP to player')
         else
-            ShowNotification("Joueur introuvable", 'error')
+            ShowNotification('Joueur introuvable', 'error')
         end
+    end)
+
+    -- Animation salut avec cooldown
+    registerAction('pl_wave', function()
+        if not _checkAnimCooldown() then return end
+        SetCooldown('anim_global', Config.Limits.AnimCooldown or 2000)
+        _playAnim('gestures@m@standing@casual', 'gesture_hello', 0)
     end)
 
     return {
         {
-            id          = "pl_info",
+            id          = 'pl_info',
             label       = name,
-            icon        = "User",
+            icon        = 'User',
             disabled    = true,
-            description = ("ID Serveur : %d"):format(serverId),
+            description = ('ID Serveur : %d'):format(serverId),
         },
-        { id = "_div_pl1", divider = true, label = "" },
-        { id = "pl_trade", label = "Proposer un échange", icon = "Handshake" },
+        { id = '_div_pl1', divider = true, label = '' },
+        { id = 'pl_trade', label = 'Proposer un échange', icon = 'Handshake' },
         {
-            id      = "pl_money",
-            label   = "Donner de l'argent",
-            icon    = "Banknote",
+            id      = 'pl_money',
+            label   = 'Donner de l\'argent',
+            icon    = 'Banknote',
             submenu = {
-                { id = "give_50",     label = "Donner 50$",     icon = "DollarSign" },
-                { id = "give_100",    label = "Donner 100$",    icon = "DollarSign" },
-                { id = "give_500",    label = "Donner 500$",    icon = "DollarSign" },
-                { id = "give_custom", label = "Montant libre…", icon = "PenLine"    },
+                { id = 'give_50',     label = 'Donner 50$',     icon = 'DollarSign' },
+                { id = 'give_100',    label = 'Donner 100$',    icon = 'DollarSign' },
+                { id = 'give_500',    label = 'Donner 500$',    icon = 'DollarSign' },
+                { id = 'give_custom', label = 'Montant libre…', icon = 'PenLine'    },
             },
         },
         {
-            id      = "pl_emotes",
-            label   = "Interactions sociales",
-            icon    = "Smile",
+            id      = 'pl_emotes',
+            label   = 'Interactions sociales',
+            icon    = 'Smile',
             submenu = {
-                { id = "pl_wave",      label = "Saluer",         icon = "Hand"      },
-                { id = "pl_handshake", label = "Serrer la main", icon = "Handshake" },
-                { id = "pl_hug",       label = "Câlin",          icon = "Heart"     },
+                { id = 'pl_wave',      label = 'Saluer (cooldown 2s)',       icon = 'Hand'      },
+                { id = 'pl_handshake', label = 'Serrer la main (cooldown)',  icon = 'Handshake' },
+                { id = 'pl_hug',       label = 'Câlin (cooldown)',           icon = 'Heart'     },
             },
         },
     }
@@ -195,92 +249,144 @@ end
 function BuildPropMenu(prop, isAdmin)
     clearPendingActions()
     local heading = GetEntityHeading(prop)
+    local coords  = GetEntityCoords(prop)
+    local myCoords = GetEntityCoords(PlayerPedId())
+    local dist = #(myCoords - coords)
+
     return {
         {
-            id          = "prop_info",
-            label       = "Objet",
-            icon        = "Package",
+            id          = 'prop_info',
+            label       = 'Objet',
+            icon        = 'Package',
             disabled    = true,
-            description = ("Heading : %.1f°"):format(heading),
+            description = ('Heading : %.1f°  |  Distance : %.1fm'):format(heading, dist),
         },
-        { id = "_div_prop1", divider = true, label = "" },
-        { id = "prop_examine", label = "Examiner",  icon = "ScanSearch" },
-        { id = "prop_pickup",  label = "Ramasser",  icon = "HandCoins"  },
+        { id = '_div_prop1', divider = true, label = '' },
+        { id = 'prop_examine', label = 'Examiner',  icon = 'ScanSearch' },
+        { id = 'prop_pickup',  label = 'Ramasser',  icon = 'HandCoins'  },
     }
 end
 
 -- ─── Admin — menu entité ──────────────────────────────────────────────────────
 function BuildAdminEntityMenu(entity, entityType)
-    -- Note : on N'appelle PAS clearPendingActions() ici car cette fonction
-    -- est appelée APRÈS Build*Menu — on ajoute au registre existant.
-
     local items = {}
 
-    -- Coordonnées : enregistrée dans le registre (capture entity)
-    registerAction("adm_coords_entity", function()
-        ShowNotification("📍 " .. FormatCoords(GetEntityCoords(entity)), 'info')
+    registerAction('adm_coords_entity', function()
+        ShowNotification('📍 ' .. FormatCoords(GetEntityCoords(entity)), 'info')
     end)
-    table.insert(items, { id = "adm_coords_entity", label = "Coordonnées", icon = "MapPin" })
+    table.insert(items, { id = 'adm_coords_entity', label = 'Coordonnées', icon = 'MapPin' })
 
-    -- Geler / Dégeler
-    registerAction("adm_freeze_entity", function()
+    registerAction('adm_freeze_entity', function()
         local frozen = IsEntityPositionFrozen(entity)
         FreezeEntityPosition(entity, not frozen)
-        ShowNotification(frozen and "Entité dégelée" or "Entité gelée", 'info')
+        ShowNotification(frozen and 'Entité dégelée' or 'Entité gelée', 'info')
+        TriggerServerEvent('kt_context:logAdminAction', 'freeze_entity', nil, frozen and 'unfreeze' or 'freeze')
     end)
-    table.insert(items, { id = "adm_freeze_entity", label = "Geler / Dégeler", icon = "Snowflake" })
+    table.insert(items, { id = 'adm_freeze_entity', label = 'Geler / Dégeler', icon = 'Snowflake' })
 
-    -- Supprimer
-    registerAction("adm_delete_entity", function()
-        SetEntityAsMissionEntity(entity, true, true)
-        DeleteEntity(entity)
-        ShowNotification("Entité supprimée", 'success')
-        TriggerServerEvent('kt_context:logAdminAction', 'delete_entity', nil, 'Delete entity')
+    -- Suppression avec confirmation via NUI
+    registerAction('adm_delete_entity', function()
+        if Config.Limits.AdminConfirmDelete then
+            -- Ouvre un sous-menu de confirmation
+            local sw, sh = GetActiveScreenResolution()
+            OpenContextMenu(sw / 2, sh / 2, {
+                {
+                    id          = 'adm_delete_confirm',
+                    label       = '⚠️ Confirmer la suppression',
+                    icon        = 'Trash2',
+                    variant     = 'danger',
+                    description = 'Cette action est irréversible',
+                },
+                { id = 'adm_delete_cancel', label = 'Annuler', icon = 'X' },
+            }, '🗑️ Confirmation')
+
+            -- Enregistrer les actions de confirmation
+            _pendingActions['adm_delete_confirm'] = function()
+                if DoesEntityExist(entity) then
+                    SetEntityAsMissionEntity(entity, true, true)
+                    DeleteEntity(entity)
+                    ShowNotification('Entité supprimée', 'success')
+                    TriggerServerEvent('kt_context:logAdminAction', 'delete_entity', nil, 'Delete entity')
+                end
+            end
+            _pendingActions['adm_delete_cancel'] = function()
+                ShowNotification('Suppression annulée', 'info')
+            end
+        else
+            SetEntityAsMissionEntity(entity, true, true)
+            DeleteEntity(entity)
+            ShowNotification('Entité supprimée', 'success')
+            TriggerServerEvent('kt_context:logAdminAction', 'delete_entity', nil, 'Delete entity')
+        end
     end)
     table.insert(items, {
-        id      = "adm_delete_entity",
-        label   = "Supprimer",
-        icon    = "Trash2",
-        variant = "danger",
+        id      = 'adm_delete_entity',
+        label   = 'Supprimer',
+        icon    = 'Trash2',
+        variant = 'danger',
+        description = Config.Limits.AdminConfirmDelete and 'Demande confirmation' or nil,
     })
 
     -- Véhicule
     if entityType == 2 then
-        table.insert(items, { id = "_div_adm_veh", divider = true, label = "" })
-        table.insert(items, { id = "adm_repair", label = "Réparer",           icon = "Wrench", variant = "success" })
-        table.insert(items, { id = "adm_refuel", label = "Remplir réservoir", icon = "Fuel"   })
+        table.insert(items, { id = '_div_adm_veh', divider = true, label = '' })
+        table.insert(items, { id = 'adm_repair', label = 'Réparer',           icon = 'Wrench', variant = 'success' })
+        table.insert(items, { id = 'adm_refuel', label = 'Remplir réservoir', icon = 'Fuel'   })
 
-        registerAction("adm_copy_plate", function()
+        registerAction('adm_copy_plate', function()
             local plate = GetVehicleNumberPlateText(entity)
-            ShowNotification("Plaque : " .. (plate or "?"), 'info')
+            ShowNotification('Plaque : ' .. (plate or '?'), 'info')
         end)
-        table.insert(items, { id = "adm_copy_plate", label = "Copier la plaque", icon = "ClipboardCopy" })
+        table.insert(items, { id = 'adm_copy_plate', label = 'Copier la plaque', icon = 'ClipboardCopy' })
     end
 
-    -- Joueur
+    -- Joueur (admin/staff seulement)
     if entityType == 1 and IsPedAPlayer(entity) then
         local localId = NetworkGetPlayerIndexFromPed(entity)
         if localId ~= -1 then
             local serverId = GetPlayerServerId(localId)
-            table.insert(items, { id = "_div_adm_pl", divider = true, label = "" })
+            table.insert(items, { id = '_div_adm_pl', divider = true, label = '' })
 
-            registerAction("adm_tp_to_player", function()
+            registerAction('adm_tp_to_player', function()
                 local c = GetEntityCoords(entity)
                 SetEntityCoords(PlayerPedId(), c.x + 1.5, c.y, c.z)
-                ShowNotification("Téléporté", 'success')
+                ShowNotification('Téléporté', 'success')
                 TriggerServerEvent('kt_context:logAdminAction', 'tp_to_player', serverId, 'TP to player')
             end)
-            table.insert(items, { id = "adm_tp_to_player", label = "TP vers ce joueur", icon = "ArrowRight" })
+            table.insert(items, { id = 'adm_tp_to_player', label = 'TP vers ce joueur', icon = 'ArrowRight' })
 
-            registerAction("adm_kick_player", function()
-                TriggerServerEvent('kt_context:admin:kick', serverId, "Expulsé par un administrateur")
-            end)
-            table.insert(items, {
-                id      = "adm_kick_player",
-                label   = "Expulser",
-                icon    = "UserX",
-                variant = "danger",
-            })
+            -- Kick (admin uniquement, pas staff)
+            if IsPlayerAdmin() then
+                registerAction('adm_kick_player', function()
+                    -- Confirmation kick
+                    local sw, sh = GetActiveScreenResolution()
+                    OpenContextMenu(sw / 2, sh / 2, {
+                        {
+                            id          = 'adm_kick_confirm',
+                            label       = '⚠️ Confirmer l\'expulsion',
+                            icon        = 'UserX',
+                            variant     = 'danger',
+                            description = ('Joueur ID: %d'):format(serverId),
+                        },
+                        { id = 'adm_kick_cancel', label = 'Annuler', icon = 'X' },
+                    }, '👢 Expulsion')
+
+                    _pendingActions['adm_kick_confirm'] = function()
+                        TriggerServerEvent('kt_context:admin:kick', serverId, 'Expulsé par un administrateur')
+                    end
+                    _pendingActions['adm_kick_cancel'] = function()
+                        ShowNotification('Expulsion annulée', 'info')
+                    end
+                end)
+                table.insert(items, {
+                    id      = 'adm_kick_player',
+                    label   = 'Expulser',
+                    icon    = 'UserX',
+                    variant = 'danger',
+                    badge   = 'admin',
+                    badgeColor = '#ef4444',
+                })
+            end
         end
     end
 

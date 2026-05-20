@@ -1,21 +1,53 @@
 -- =============================================
--- UTILS CLIENT
--- FIX : IsPlayerAdmin() et GetAdminRole() sont
---       définis dans sync.lua (DB) et dans client/utils.lua (ACE).
---       On conserve uniquement la version ACE ici
---       ET on la rend compatible avec sync.lua :
---       si Permissions est chargé → on l'utilise en priorité.
+-- UTILS CLIENT — v3.1 (fixed)
+-- FIX : suppression de IsPlayerAdmin() et GetAdminRole() ici
+--       → définis UNIQUEMENT dans sync.lua pour éviter le conflit.
+--       Les deux fonctions sont redéfinies en bas en ALIAS si sync.lua
+--       n'est pas encore chargé (sécurité ordre de chargement).
 -- =============================================
 
--- Notification visuelle
+-- ─── Cooldown système global ──────────────────────────────────────────────────
+local _cooldowns = {}
+
+function HasCooldown(key)
+    local t = _cooldowns[key]
+    if not t then return false end
+    if GetGameTimer() < t then return true end
+    _cooldowns[key] = nil
+    return false
+end
+
+function SetCooldown(key, ms)
+    _cooldowns[key] = GetGameTimer() + (ms or 2000)
+end
+
+function ClearCooldown(key)
+    _cooldowns[key] = nil
+end
+
+-- ─── Notification visuelle ────────────────────────────────────────────────────
+-- NOTE : SendNUIMessage est disponible côté client uniquement
 function ShowNotification(message, notifType)
     notifType = notifType or 'info'
+    -- NUI notification (meilleure UX)
+    if SendNUIMessage then
+        SendNUIMessage({
+            type = 'notification',
+            data = { message = message, type = notifType, duration = 3000 }
+        })
+    end
+    -- Fallback natif GTA
     SetNotificationTextEntry('STRING')
     AddTextComponentString(message)
     DrawNotification(false, true)
 end
 
--- Véhicule le plus proche (usage général, signature différente de la version locale de cursor.lua)
+-- ─── Distance check ──────────────────────────────────────────────────────────
+function IsWithinDistance(coords1, coords2, maxDist)
+    return #(coords1 - coords2) <= maxDist
+end
+
+-- ─── Véhicule le plus proche ──────────────────────────────────────────────────
 function GetClosestVehicleNearby(coords, maxDist)
     coords  = coords  or GetEntityCoords(PlayerPedId())
     maxDist = maxDist or (Config.InteractionDistance or 5.0)
@@ -35,7 +67,7 @@ function GetClosestVehicleNearby(coords, maxDist)
     return -1, math.huge
 end
 
--- Joueur le plus proche
+-- ─── Joueur le plus proche ────────────────────────────────────────────────────
 function GetClosestPlayer(coords)
     coords = coords or GetEntityCoords(PlayerPedId())
     local closestDist, closestPlayer = -1, -1
@@ -53,7 +85,7 @@ function GetClosestPlayer(coords)
     return closestPlayer, closestDist
 end
 
--- Texte 3D dans le monde
+-- ─── Texte 3D dans le monde ───────────────────────────────────────────────────
 function Draw3DText(coords, text)
     local onScreen, sx, sy = World3dToScreen2d(coords.x, coords.y, coords.z)
     local px, py, pz = table.unpack(GetGameplayCamCoords())
@@ -77,7 +109,7 @@ function Draw3DText(coords, text)
     end
 end
 
--- Toggle porte véhicule
+-- ─── Toggle porte véhicule ────────────────────────────────────────────────────
 function ToggleVehicleDoor(doorIndex)
     local veh = GetVehiclePedIsIn(PlayerPedId(), true)
     if veh ~= 0 then
@@ -89,44 +121,7 @@ function ToggleVehicleDoor(doorIndex)
     end
 end
 
--- ─── Permissions ──────────────────────────────────────────────────────────────
--- FIX : sync.lua charge les permissions depuis la DB (via oxmysql).
---       utils.lua avait sa propre version basée sur IsPlayerAceAllowed.
---       On unifie : on utilise Permissions (sync.lua) si disponible,
---       sinon on fallback sur les ACE. Ainsi les deux systèmes coexistent
---       sans conflit quelle que soit l'ordre de chargement.
-
-function IsPlayerAdmin()
-    -- Priorité 1 : groupe DB synchronisé par sync.lua
-    if Permissions and Permissions.group then
-        local h = { user = 1, moderator = 2, admin = 3, founder = 4 }
-        return (h[Permissions.group] or 0) >= h['admin']
-    end
-    -- Fallback : ACE Allowlist
-    for _, ace in pairs(Config.AdminGroups or Config.AdminAces or {}) do
-        if IsPlayerAceAllowed(PlayerId(), ace) then return true end
-    end
-    return false
-end
-
-function GetAdminRole()
-    -- Priorité 1 : groupe DB
-    if Permissions and Permissions.group and Permissions.group ~= 'user' then
-        return Permissions.group
-    end
-    -- Fallback ACE
-    if IsPlayerAceAllowed(PlayerId(), 'founder')   then return 'founder'   end
-    if IsPlayerAceAllowed(PlayerId(), 'admin')     then return 'admin'     end
-    if IsPlayerAceAllowed(PlayerId(), 'moderator') then return 'moderator' end
-    return nil
-end
-
--- Format coordonnées
-function FormatCoords(coords)
-    return ('X:%.1f Y:%.1f Z:%.1f'):format(coords.x, coords.y, coords.z)
-end
-
--- Direction caméra depuis rotation
+-- ─── Direction caméra depuis rotation ────────────────────────────────────────
 function RotationToDirection(rot)
     local rx = math.rad(rot.x)
     local rz = math.rad(rot.z)
@@ -135,4 +130,47 @@ function RotationToDirection(rot)
          math.cos(rz) * math.abs(math.cos(rx)),
          math.sin(rx)
     )
+end
+
+-- ─── Format coordonnées ──────────────────────────────────────────────────────
+function FormatCoords(coords)
+    return ('X:%.1f Y:%.1f Z:%.1f'):format(coords.x, coords.y, coords.z)
+end
+
+-- ─── Permissions — ALIAS sécurisé ────────────────────────────────────────────
+-- sync.lua est chargé après utils.lua et redéfinira ces fonctions.
+-- Ces alias évitent une erreur si utils.lua est appelé avant sync.lua.
+if not IsPlayerAdmin then
+    function IsPlayerAdmin()
+        -- Fallback ACE si sync.lua pas encore chargé
+        if Permissions and Permissions.group then
+            local h = { user = 1, moderator = 2, admin = 3, founder = 4 }
+            return (h[Permissions.group] or 0) >= h['admin']
+        end
+        for _, ace in pairs(Config.AdminGroups or {}) do
+            if IsPlayerAceAllowed(PlayerId(), ace) then return true end
+        end
+        return false
+    end
+end
+
+if not GetAdminRole then
+    function GetAdminRole()
+        if Permissions and Permissions.group and Permissions.group ~= 'user' then
+            return Permissions.group
+        end
+        if IsPlayerAceAllowed(PlayerId(), 'founder')   then return 'founder'   end
+        if IsPlayerAceAllowed(PlayerId(), 'admin')     then return 'admin'     end
+        if IsPlayerAceAllowed(PlayerId(), 'moderator') then return 'moderator' end
+        return nil
+    end
+end
+
+-- Vérifie si le joueur a un rôle staff (admin ou modérateur)
+function IsPlayerStaff()
+    if Permissions and Permissions.group then
+        local h = { user = 1, staff = 2, moderator = 3, admin = 4, founder = 5 }
+        return (h[Permissions.group] or 0) >= h['staff']
+    end
+    return IsPlayerAdmin()
 end

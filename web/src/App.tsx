@@ -1,6 +1,7 @@
 import { useEffect, useRef, type FC } from 'react'
 import ContextMenu from './components/ContextMenu'
 import Cursor from './components/Cursor'
+import NotificationSystem from './components/NotificationSystem'
 import { useContextMenu } from './hooks/useContextMenu'
 import { useCursor } from './hooks/useCursor'
 import { isEnvBrowser, sendNui } from './utils/nui'
@@ -10,14 +11,14 @@ const DEV_ITEMS: MenuItem[] = [
   {
     id: 'player_actions', label: 'Actions joueur', icon: 'User2',
     submenu: [
-      { id: 'wave',     label: 'Saluer',       icon: 'Hand'       },
-      { id: 'sit',      label: "S'asseoir",    icon: 'Armchair'   },
-      { id: 'lay',      label: "S'allonger",   icon: 'BedDouble'  },
-      { id: 'stopanim', label: 'Arrêter anim', icon: 'StopCircle' },
+      { id: 'wave',     label: 'Saluer (cooldown 2s)', icon: 'Hand'       },
+      { id: 'sit',      label: "S'asseoir",            icon: 'Armchair'   },
+      { id: 'lay',      label: "S'allonger",           icon: 'BedDouble'  },
+      { id: 'stopanim', label: 'Arreter anim',         icon: 'StopCircle' },
     ],
   },
   {
-    id: 'vehicle', label: 'Véhicule', icon: 'Car',
+    id: 'vehicle', label: 'Vehicule', icon: 'Car',
     submenu: [
       { id: 'veh_lock',   label: 'Verrouiller', icon: 'Lock' },
       { id: 'veh_engine', label: 'Moteur',       icon: 'Zap'  },
@@ -26,38 +27,43 @@ const DEV_ITEMS: MenuItem[] = [
         submenu: [
           { id: 'door_fl',        label: 'Avant gauche',   icon: 'SquareDot'  },
           { id: 'door_fr',        label: 'Avant droite',   icon: 'SquareDot'  },
-          { id: 'door_rl',        label: 'Arrière gauche', icon: 'SquareDot'  },
-          { id: 'door_rr',        label: 'Arrière droite', icon: 'SquareDot'  },
-          { id: 'door_hood',      label: 'Capot',          icon: 'SquareDot'  },
-          { id: 'door_trunk',     label: 'Coffre',          icon: 'SquareDot'  },
-          { id: '_div_doors',     divider: true, label: '' },
+          { id: 'door_rl',        label: 'Arriere gauche', icon: 'SquareDot'  },
+          { id: 'door_rr',        label: 'Arriere droite', icon: 'SquareDot'  },
           { id: 'door_all_open',  label: 'Toutes ouvrir',  icon: 'DoorOpen'   },
           { id: 'door_all_close', label: 'Toutes fermer',  icon: 'DoorClosed' },
         ],
       },
     ],
   },
+  {
+    id: 'prop_menu', label: 'Gestion Objets', icon: 'Package',
+    submenu: [
+      { id: 'rot_z_p',     label: 'Yaw +15',        icon: 'RotateCw'                      },
+      { id: 'rot_z_m',     label: 'Yaw -15',        icon: 'RotateCcw'                     },
+      { id: 'rot_reset',   label: 'Reset rotation', icon: 'RefreshCw',  variant: 'warning' as const },
+      { id: 'prop_freeze', label: 'Geler/Degeler',  icon: 'Snowflake'                     },
+      { id: '_divprop',    divider: true, label: ''                                        },
+      { id: 'prop_delete', label: 'Supprimer',      icon: 'Trash2',     variant: 'danger' as const  },
+    ],
+  },
   { id: 'inventory', label: 'Inventaire', icon: 'Backpack', description: 'Voir mes objets' },
-  { id: 'phone',     label: 'Téléphone',  icon: 'Phone' },
   { id: '_div1', divider: true, label: '' },
   {
     id: 'admin_section', label: 'Options Admin', icon: 'ShieldAlert',
     badge: 'admin', badgeColor: '#fbbf24',
     submenu: [
-      { id: 'adm_tp_waypoint', label: 'TP Waypoint',        icon: 'Navigation'                  },
-      { id: 'adm_god',         label: 'God Mode',           icon: 'Shield'                      },
-      { id: 'adm_heal_self',   label: 'Se soigner',         icon: 'Heart',  variant: 'success'  },
-      { id: 'adm_delete',      label: 'Supprimer véhicule', icon: 'Trash2', variant: 'danger'   },
+      { id: 'adm_tp_waypoint', label: 'TP Waypoint',        icon: 'Navigation'                        },
+      { id: 'adm_god',         label: 'God Mode',           icon: 'Shield'                            },
+      { id: 'adm_heal_self',   label: 'Se soigner',         icon: 'Heart',  variant: 'success' as const },
+      { id: 'adm_delete',      label: 'Supprimer vehicule', icon: 'Trash2', variant: 'danger'  as const },
     ],
   },
-  { id: 'disabled_opt', label: 'Option désactivée', icon: 'Ban', disabled: true },
+  { id: 'disabled_opt', label: 'Option desactivee', icon: 'Ban', disabled: true },
 ]
 
 const App: FC = () => {
   const { state, openMenu, closeMenu } = useContextMenu()
   const { cursor } = useCursor()
-
-  // Ref pour savoir si le curseur Lua est actif (évite d'intercepter des clics normaux)
   const cursorActiveRef = useRef(false)
 
   useEffect(() => {
@@ -65,7 +71,6 @@ const App: FC = () => {
   }, [])
 
   useEffect(() => {
-    // Sync l'état curseur depuis les messages NUI
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'cursorShow') {
         cursorActiveRef.current = e.data.data?.visible ?? false
@@ -76,29 +81,18 @@ const App: FC = () => {
   }, [])
 
   useEffect(() => {
-    if (isEnvBrowser()) return // En dev, on utilise onContextMenu à la place
-
-    // ── FiveM build ──────────────────────────────────────────────────────────
-    // Quand le curseur Lua est actif (ALT maintenu), chaque mousedown gauche
-    // envoie les coords pixel réels à Lua via NUI callback "cursorClick".
-    // Lua fait le raycast avec ces coords (converties en normalisé) pour
-    // identifier l'entité 3D, puis répond avec openContextMenu { x, y, items }.
-    // Le menu s'affiche exactement à ces mêmes coordonnées pixel.
+    if (isEnvBrowser()) return
     const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return               // clic gauche uniquement
-      if (!cursorActiveRef.current) return     // seulement en mode curseur ALT
-      if (state.visible) return                // menu déjà ouvert → laisser React gérer
-
+      if (e.button !== 0) return
+      if (!cursorActiveRef.current) return
+      if (state.visible) return
       e.preventDefault()
-      // Envoyer les coords pixel exactes à Lua
       sendNui('cursorClick', { x: e.clientX, y: e.clientY })
     }
-
     window.addEventListener('mousedown', onMouseDown)
     return () => window.removeEventListener('mousedown', onMouseDown)
   }, [state.visible])
 
-  // ── DEV : clic droit pour tester à la position exacte ───────────────────
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     openMenu(e.clientX, e.clientY, DEV_ITEMS, 'Menu Contextuel')
@@ -120,17 +114,18 @@ const App: FC = () => {
           <div style={{ fontSize: 11, letterSpacing: '0.14em', color: '#334155', textTransform: 'uppercase', fontWeight: 600 }}>
             KT Context Menu
           </div>
-          <div style={{ fontSize: 22, color: '#e2e8f0', fontWeight: 300 }}>v3.0</div>
+          <div style={{ fontSize: 22, color: '#e2e8f0', fontWeight: 300 }}>v3.1</div>
           <div style={{ marginTop: 16, fontSize: 11, color: '#334155', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ background: '#0d1017', border: '1px solid rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: 3, fontSize: 10, color: '#4f8ef7' }}>
               CLIC DROIT
             </span>
-            <span>pour tester — le menu s'ouvre à la position du clic</span>
+            <span>pour tester</span>
           </div>
         </div>
       )}
 
       <Cursor cursor={cursor} />
+      <NotificationSystem />
 
       <ContextMenu
         visible={state.visible}
