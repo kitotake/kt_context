@@ -2,11 +2,12 @@
 -- PERMISSIONS SERVEUR — v3.1 (fixed)
 -- FIX : 'playerJoining' → 'playerConnecting' (nom correct FiveM)
 -- FIX : Rate limiting serveur anti-spam
+-- FIX : onServerResourceStart pour les joueurs déjà connectés
 -- =============================================
 Permissions = {}
 
-local cache         = {}
-local _rateLimits   = {}  -- [src] = { action = timestamp }
+local cache       = {}
+local _rateLimits = {}
 
 local HIERARCHY = { user = 1, staff = 2, moderator = 3, admin = 4, founder = 5 }
 
@@ -24,14 +25,8 @@ end
 function IsRateLimited(src, action, ms)
     ms = ms or (Config and Config.Limits and Config.Limits.ServerActionCooldown or 500)
     if not _rateLimits[src] then _rateLimits[src] = {} end
-    local last = _rateLimits[src][action]
-    local now  = os.time() * 1000
-
-    -- os.time() est en secondes, GetGameTimer() n'est pas dispo côté serveur
-    -- On utilise os.clock() * 1000 pour ms
-    local nowMs = math.floor(os.clock() * 1000)
+    local nowMs  = math.floor(os.clock() * 1000)
     local lastMs = _rateLimits[src][action] or 0
-
     if (nowMs - lastMs) < ms then
         return true
     end
@@ -48,7 +43,6 @@ function Permissions.Load(src)
         return 'user'
     end
 
-    -- Essaie oxmysql si disponible, sinon fallback ACE
     if exports.oxmysql then
         exports.oxmysql:scalar(
             'SELECT `group` FROM `users` WHERE `identifier` = ? LIMIT 1',
@@ -57,20 +51,22 @@ function Permissions.Load(src)
                 local g = group or 'user'
                 cache[src] = g
                 TriggerClientEvent('permissions:client:set', src, g)
-                print(('[KT Perms] %s (%d) → groupe: %s'):format(GetPlayerName(src) or '?', src, g))
+                print(('[KT Perms] %s (%d) → groupe: %s'):format(
+                    GetPlayerName(src) or '?', src, g))
             end
         )
     else
-        -- Fallback ACE (serveurs sans oxmysql)
+        -- Fallback ACE
         local group = 'user'
-        if IsPlayerAceAllowed(src, 'founder')   then group = 'founder'
-        elseif IsPlayerAceAllowed(src, 'admin') then group = 'admin'
+        if     IsPlayerAceAllowed(src, 'founder')   then group = 'founder'
+        elseif IsPlayerAceAllowed(src, 'admin')     then group = 'admin'
         elseif IsPlayerAceAllowed(src, 'moderator') then group = 'moderator'
         elseif IsPlayerAceAllowed(src, 'staff')     then group = 'staff'
         end
         cache[src] = group
         TriggerClientEvent('permissions:client:set', src, group)
-        print(('[KT Perms ACE] %s (%d) → groupe: %s'):format(GetPlayerName(src) or '?', src, group))
+        print(('[KT Perms ACE] %s (%d) → groupe: %s'):format(
+            GetPlayerName(src) or '?', src, group))
     end
 end
 
@@ -97,10 +93,8 @@ function Permissions.GetRole(src)
     return cache[src] or 'user'
 end
 
--- ─── Événements — FIX: playerConnecting au lieu de playerJoining ──────────────
--- 'playerJoining' n'est pas un événement natif FiveM.
--- 'playerConnecting' se déclenche à la connexion (avant spawn).
--- Utiliser aussi 'onServerResourceStart' pour les joueurs déjà connectés.
+-- ─── Événements ───────────────────────────────────────────────────────────────
+-- FIX: 'playerConnecting' (correct) au lieu de 'playerJoining' (inexistant)
 AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
     local src = source
     deferrals.defer()
@@ -111,7 +105,7 @@ end)
 
 AddEventHandler('playerDropped', function()
     local src = source
-    cache[src] = nil
+    cache[src]       = nil
     _rateLimits[src] = nil
 end)
 
@@ -121,7 +115,7 @@ AddEventHandler('kt_context:requestPermissions', function()
     Permissions.Load(source)
 end)
 
--- Charger pour les joueurs déjà connectés au démarrage de la ressource
+-- FIX: charger pour les joueurs déjà connectés au démarrage de la ressource
 AddEventHandler('onServerResourceStart', function(res)
     if res == GetCurrentResourceName() then
         for _, playerId in ipairs(GetPlayers()) do
@@ -141,10 +135,16 @@ RegisterCommand('ktgroup', function(src, args)
 end, false)
 
 RegisterCommand('ktsetgroup', function(src, args)
-    if not Permissions.IsAdmin(src) then return end
+    if not Permissions.IsAdmin(src) then
+        TriggerClientEvent('kt_context:notify', src, 'Accès refusé', 'error')
+        return
+    end
     local target = tonumber(args[1])
     local group  = args[2]
-    if not target or not group then return end
+    if not target or not group then
+        TriggerClientEvent('kt_context:notify', src, 'Usage: /ktsetgroup <id> <groupe>', 'warning')
+        return
+    end
     if not HIERARCHY[group] then
         TriggerClientEvent('kt_context:notify', src, 'Groupe invalide', 'error')
         return
@@ -153,5 +153,6 @@ RegisterCommand('ktsetgroup', function(src, args)
     TriggerClientEvent('permissions:client:set', target, group)
     TriggerClientEvent('kt_context:notify', src,
         ('Groupe de %d → %s'):format(target, group), 'success')
-    print(('[KT Admin] %s a changé le groupe de %d → %s'):format(GetPlayerName(src) or '?', target, group))
+    print(('[KT Admin] %s a changé le groupe de %d → %s'):format(
+        GetPlayerName(src) or '?', target, group))
 end, false)

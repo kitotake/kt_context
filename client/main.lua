@@ -1,16 +1,17 @@
 -- =============================================
--- MENU CONTEXTUEL - PRINCIPAL - v3.1 (fixed)
+-- MENU CONTEXTUEL - PRINCIPAL - v3.2 (fixed)
 -- FIXES :
 --   - Cooldown animations (HasCooldown / SetCooldown)
 --   - Limite deplacement 3m depuis ouverture du menu
---   - Ajout handlers prop (rot_*, prop_freeze, prop_delete)
+--   - prop_gizmo ajouté dans actionHandlers (dispatch vers kt_context:action)
 --   - veh_lights + door_all_* corriges
---   - SetNuiFocus gere proprement selon cursorActive
+--   - SetNuiFocus géré proprement selon cursorActive
+--   - win_up / win_down : garde veh depuis le siège OU proche
 -- =============================================
 
-local isMenuOpen     = false
-local menuHistory    = {}
-local _menuOpenCoords = nil  -- coords joueur a l'ouverture (pour distance check)
+local isMenuOpen      = false
+local menuHistory     = {}
+local _menuOpenCoords = nil
 
 -- ─── Ouverture ──────────────────────────────────────────────────────────────
 function OpenContextMenu(x, y, items, title, options)
@@ -31,8 +32,8 @@ function OpenContextMenu(x, y, items, title, options)
         return
     end
 
-    isMenuOpen = true
-    _menuOpenCoords = GetEntityCoords(PlayerPedId())
+    isMenuOpen        = true
+    _menuOpenCoords   = GetEntityCoords(PlayerPedId())
 
     if not IsCursorActive() then
         SetNuiFocus(true, true)
@@ -56,8 +57,8 @@ end
 -- ─── Fermeture ──────────────────────────────────────────────────────────────
 function CloseContextMenu()
     if not isMenuOpen then return end
-    isMenuOpen = false
-    menuHistory = {}
+    isMenuOpen      = false
+    menuHistory     = {}
     _menuOpenCoords = nil
 
     SendNUIMessage({ type = 'closeContextMenu' })
@@ -72,12 +73,11 @@ function IsMenuOpen()
     return isMenuOpen
 end
 
--- ─── Check distance depuis ouverture du menu ─────────────────────────────────
+-- ─── Check distance depuis ouverture ─────────────────────────────────────────
 local function _checkMenuDistance()
     if not _menuOpenCoords then return true end
     local maxDist = Config.Limits and Config.Limits.MaxInteractMoveDistance or 3.0
-    local currentCoords = GetEntityCoords(PlayerPedId())
-    if #(currentCoords - _menuOpenCoords) > maxDist then
+    if #(GetEntityCoords(PlayerPedId()) - _menuOpenCoords) > maxDist then
         ShowNotification(L('too_far'), 'warning')
         CloseContextMenu()
         return false
@@ -85,7 +85,7 @@ local function _checkMenuDistance()
     return true
 end
 
--- ─── Helpers animations avec cooldown ────────────────────────────────────────
+-- ─── Helpers animations ────────────────────────────────────────────────────────
 local function _checkAnimCooldown()
     if HasCooldown('anim_global') then
         ShowNotification(L('cooldown_wait'), 'warning')
@@ -113,11 +113,11 @@ local function _playAnimHandler(dict, clip, flags)
     TaskPlayAnim(ped, dict, clip, 8.0, -8.0, -1, flags or 0, 0, false, false, false)
 end
 
--- ─── Securite ─────────────────────────────────────────────────────────────────
+-- ─── Sécurité resource stop / spawn ───────────────────────────────────────────
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName == GetCurrentResourceName() and isMenuOpen then
-        isMenuOpen = false
-        menuHistory = {}
+        isMenuOpen      = false
+        menuHistory     = {}
         _menuOpenCoords = nil
         SetNuiFocus(false, false)
         SetNuiFocusKeepInput(false)
@@ -126,8 +126,8 @@ end)
 
 AddEventHandler('playerSpawned', function()
     if isMenuOpen then
-        isMenuOpen = false
-        menuHistory = {}
+        isMenuOpen      = false
+        menuHistory     = {}
         _menuOpenCoords = nil
         SetNuiFocus(false, false)
         SetNuiFocusKeepInput(false)
@@ -135,7 +135,10 @@ AddEventHandler('playerSpawned', function()
     end
 end)
 
--- ─── Gestionnaires d'actions ──────────────────────────────────────────────────
+-- ─── Gestionnaires d'actions statiques ────────────────────────────────────────
+-- Les actions prop (rot_*, prop_freeze, prop_delete, prop_gizmo, auto_*)
+-- sont gérées par rotation/client.lua via AddEventHandler('kt_context:action').
+-- Ce fichier-ci dispatch vers cet event pour les IDs non reconnus ici (fallback).
 local actionHandlers = {
 
     inventory = function()
@@ -146,14 +149,9 @@ local actionHandlers = {
 
     phone = function() TriggerEvent('kt_phone:open') end,
 
-    -- ── Animations (avec cooldown) ────────────────────────────────────────────
-    wave = function()
-        _playAnimHandler('gestures@m@standing@casual', 'gesture_hello', 0)
-    end,
-
-    handsup = function()
-        _playAnimHandler('random@mugging3', 'handsup_standing_base', 50)
-    end,
+    -- ── Animations ────────────────────────────────────────────────────────────
+    wave    = function() _playAnimHandler('gestures@m@standing@casual', 'gesture_hello', 0) end,
+    handsup = function() _playAnimHandler('random@mugging3', 'handsup_standing_base', 50) end,
 
     sit = function()
         if not _checkAnimCooldown() then return end
@@ -176,7 +174,7 @@ local actionHandlers = {
     stopanim = function() ClearPedTasks(PlayerPedId()) end,
     stop     = function() ClearPedTasks(PlayerPedId()) end,
 
-    -- ── Vehicule ──────────────────────────────────────────────────────────────
+    -- ── Véhicule ──────────────────────────────────────────────────────────────
     veh_lock = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
@@ -190,8 +188,9 @@ local actionHandlers = {
     end,
 
     veh_engine = function()
-        local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-        if veh ~= 0 then
+        local ped = PlayerPedId()
+        local veh = GetVehiclePedIsIn(ped, false)
+        if veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped then
             SetVehicleEngineOn(veh, not GetIsVehicleEngineRunning(veh), false, true)
         end
     end,
@@ -201,7 +200,7 @@ local actionHandlers = {
         if veh ~= 0 then
             local on, _ = GetVehicleLightsState(veh)
             SetVehicleLights(veh, on == 1 and 0 or 2)
-            ShowNotification(on == 1 and 'Lumieres eteintes' or 'Lumieres allumees', 'info')
+            ShowNotification(on == 1 and 'Lumières éteintes' or 'Lumières allumées', 'info')
         end
     end,
 
@@ -213,6 +212,7 @@ local actionHandlers = {
     door_trunk = function() ToggleVehicleDoor(5) end,
 
     door_all_open = function()
+        -- FIX: true = inclut les véhicules à proximité (pas seulement dans lequel on est)
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
             for i = 0, 5 do SetVehicleDoorOpen(veh, i, false, false) end
@@ -224,14 +224,17 @@ local actionHandlers = {
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
             for i = 0, 5 do SetVehicleDoorShut(veh, i, false) end
-            ShowNotification('Toutes les portes fermees', 'success')
+            ShowNotification('Toutes les portes fermées', 'success')
         end
     end,
 
+    -- FIX: win_up / win_down — veh false = seulement dans lequel on est assis
     win_up = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
         if veh ~= 0 then
             for i = 0, 3 do RollUpWindow(veh, i) end
+        else
+            ShowNotification('Vous devez être dans un véhicule', 'warning')
         end
     end,
 
@@ -239,14 +242,12 @@ local actionHandlers = {
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
         if veh ~= 0 then
             for i = 0, 3 do RollDownWindow(veh, i) end
+        else
+            ShowNotification('Vous devez être dans un véhicule', 'warning')
         end
     end,
 
-    -- ── Props / Rotation (delegues a PropManager) ─────────────────────────────
-    -- Les handlers rot_*, prop_freeze, prop_delete, auto_* sont dans rotation_client.lua
-    -- via AddEventHandler('kt_context:action') → pas besoin de les re-lister ici.
-
-    -- ── Admin - self ──────────────────────────────────────────────────────────
+    -- ── Admin — self ──────────────────────────────────────────────────────────
     adm_coords_self = function()
         ShowNotification(('📍 %s'):format(FormatCoords(GetEntityCoords(PlayerPedId()))), 'info')
     end,
@@ -265,10 +266,10 @@ local actionHandlers = {
             else
                 SetEntityCoords(ped, coords.x, coords.y, z + 1.0)
             end
-            ShowNotification('📍 Teleporte au waypoint', 'success')
+            ShowNotification('📍 Téléporté au waypoint', 'success')
             TriggerServerEvent('kt_context:logAdminAction', 'tp_waypoint', nil, 'TP waypoint')
         else
-            ShowNotification('Aucun waypoint place', 'warning')
+            ShowNotification('Aucun waypoint placé', 'warning')
         end
     end,
 
@@ -276,7 +277,7 @@ local actionHandlers = {
         if not IsPlayerAdmin() then return end
         local inv = GetPlayerInvincible(PlayerId())
         SetEntityInvincible(PlayerPedId(), not inv)
-        ShowNotification(inv and 'God Mode desactive' or 'God Mode active', 'info')
+        ShowNotification(inv and 'God Mode désactivé' or 'God Mode activé', 'info')
         TriggerServerEvent('kt_context:logAdminAction', 'god_mode', nil, 'Toggle')
     end,
 
@@ -285,7 +286,7 @@ local actionHandlers = {
         local ped = PlayerPedId()
         local vis = IsEntityVisible(ped)
         SetEntityVisible(ped, not vis, false)
-        ShowNotification(vis and 'Invisible active' or 'Visible', 'info')
+        ShowNotification(vis and 'Invisible activé' or 'Visible', 'info')
         TriggerServerEvent('kt_context:logAdminAction', 'invisible', nil, 'Toggle')
     end,
 
@@ -293,14 +294,14 @@ local actionHandlers = {
         if not IsPlayerAdmin() and not IsPlayerStaff() then return end
         local ped = PlayerPedId()
         SetEntityHealth(ped, GetEntityMaxHealth(ped))
-        ShowNotification('Sante restauree', 'success')
+        ShowNotification('Santé restaurée', 'success')
         TriggerServerEvent('kt_context:logAdminAction', 'heal_self', nil, 'Self heal')
     end,
 
     adm_armor_self = function()
         if not IsPlayerAdmin() and not IsPlayerStaff() then return end
         SetPedArmour(PlayerPedId(), 100)
-        ShowNotification('Armure restauree', 'success')
+        ShowNotification('Armure restaurée', 'success')
         TriggerServerEvent('kt_context:logAdminAction', 'armor_self', nil, 'Self armor')
     end,
 
@@ -313,10 +314,10 @@ local actionHandlers = {
             SetVehicleUndriveable(veh, false)
             SetVehicleEngineOn(veh, true, false)
             SetVehicleDirtLevel(veh, 0.0)
-            ShowNotification('Vehicule repare', 'success')
+            ShowNotification('Véhicule réparé', 'success')
             TriggerServerEvent('kt_context:logAdminAction', 'repair_vehicle', nil, 'Repair')
         else
-            ShowNotification('Pas dans un vehicule', 'warning')
+            ShowNotification('Pas dans un véhicule', 'warning')
         end
     end,
 
@@ -326,10 +327,10 @@ local actionHandlers = {
         if veh ~= 0 then
             SetEntityAsMissionEntity(veh, true, true)
             DeleteVehicle(veh)
-            ShowNotification('Vehicule supprime', 'success')
+            ShowNotification('Véhicule supprimé', 'success')
             TriggerServerEvent('kt_context:logAdminAction', 'delete_vehicle', nil, 'Delete')
         else
-            ShowNotification('Aucun vehicule proche', 'warning')
+            ShowNotification('Aucun véhicule proche', 'warning')
         end
     end,
 
@@ -338,15 +339,13 @@ local actionHandlers = {
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
         if veh ~= 0 then
             SetVehicleFuelLevel(veh, 100.0)
-            ShowNotification('Reservoir rempli', 'success')
+            ShowNotification('Réservoir rempli', 'success')
         end
     end,
 
-    -- ── Prop placement rapide (commande menu) ──────────────────────────────────
+    -- ── Props (raccourcis menu général) ───────────────────────────────────────
     placeprop = function()
-        if PropManager then
-            PropManager:Place(Config.Rotation.DefaultPropName)
-        end
+        if PropManager then PropManager:Place(Config.Rotation.DefaultPropName) end
     end,
 
     propmenu = function()
@@ -356,6 +355,9 @@ local actionHandlers = {
             ShowNotification('Aucun objet actif', 'warning')
         end
     end,
+
+    -- prop_gizmo est dispatché via TriggerEvent('kt_context:action') ci-dessous
+    -- (géré par rotation/client.lua → PropManager:OpenGizmo())
 }
 
 -- ─── NUI Callbacks ───────────────────────────────────────────────────────────
@@ -365,32 +367,34 @@ RegisterNUICallback('menuAction', function(data, cb)
         return
     end
 
-    -- Check distance (ferme si trop loin)
+    -- Check distance
     if not _checkMenuDistance() then
         cb('ok')
         return
     end
 
-    -- Priorite 1 : actions dynamiques (Build*Menu)
+    -- Priorité 1 : actions dynamiques enregistrées (Build*Menu)
     if ExecutePendingAction and ExecutePendingAction(data.id) then
         cb('ok')
         return
     end
 
-    -- Priorite 2 : handlers statiques
+    -- Priorité 2 : handlers statiques de ce fichier
     local handler = actionHandlers[data.id]
     if handler then
         handler()
-    else
-        -- Fallback : event generique pour scripts tiers
-        TriggerEvent('kt_context:action', data.id, data)
+        cb('ok')
+        return
     end
+
+    -- Priorité 3 : fallback → event générique (capté par rotation/client.lua et autres)
+    TriggerEvent('kt_context:action', data.id, data)
     cb('ok')
 end)
 
 RegisterNUICallback('menuClosed', function(_, cb)
-    isMenuOpen = false
-    menuHistory = {}
+    isMenuOpen      = false
+    menuHistory     = {}
     _menuOpenCoords = nil
     if not IsCursorActive() then
         SetNuiFocus(false, false)
@@ -398,7 +402,7 @@ RegisterNUICallback('menuClosed', function(_, cb)
     cb('ok')
 end)
 
--- ─── Blocage des controles quand le menu est ouvert ───────────────────────────
+-- ─── Blocage des contrôles menu ouvert ────────────────────────────────────────
 local BLOCKED_CONTROLS = { 24, 25, 142, 18, 322, 106, 68 }
 
 Citizen.CreateThread(function()
@@ -414,13 +418,12 @@ Citizen.CreateThread(function()
     end
 end)
 
--- ─── Thread : fermeture auto si joueur trop loin (3m depuis ouverture) ────────
+-- ─── Fermeture auto si joueur trop loin (3m) ──────────────────────────────────
 Citizen.CreateThread(function()
     while true do
         if isMenuOpen and _menuOpenCoords then
             local maxDist = Config.Limits and Config.Limits.MaxInteractMoveDistance or 3.0
-            local currentCoords = GetEntityCoords(PlayerPedId())
-            if #(currentCoords - _menuOpenCoords) > maxDist then
+            if #(GetEntityCoords(PlayerPedId()) - _menuOpenCoords) > maxDist then
                 ShowNotification(L('too_far'), 'warning')
                 CloseContextMenu()
             end

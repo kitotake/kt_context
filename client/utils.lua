@@ -1,12 +1,11 @@
 -- =============================================
--- UTILS CLIENT — v3.1 (fixed)
--- FIX : suppression de IsPlayerAdmin() et GetAdminRole() ici
---       → définis UNIQUEMENT dans sync.lua pour éviter le conflit.
---       Les deux fonctions sont redéfinies en bas en ALIAS si sync.lua
---       n'est pas encore chargé (sécurité ordre de chargement).
+-- UTILS CLIENT — v3.2
+-- FIX : IsPlayerAdmin() et GetAdminRole() définis ici en ALIAS sécurisé
+--       → sync.lua les écrase définitivement (chargé après)
+-- FIX : IsPlayerStaff() utilise la même hiérarchie que sync.lua
 -- =============================================
 
--- ─── Cooldown système global ──────────────────────────────────────────────────
+-- ─── Cooldown système ─────────────────────────────────────────────────────────
 local _cooldowns = {}
 
 function HasCooldown(key)
@@ -25,24 +24,22 @@ function ClearCooldown(key)
     _cooldowns[key] = nil
 end
 
--- ─── Notification visuelle ────────────────────────────────────────────────────
--- NOTE : SendNUIMessage est disponible côté client uniquement
+-- ─── Notification ─────────────────────────────────────────────────────────────
 function ShowNotification(message, notifType)
     notifType = notifType or 'info'
-    -- NUI notification (meilleure UX)
     if SendNUIMessage then
         SendNUIMessage({
             type = 'notification',
             data = { message = message, type = notifType, duration = 3000 }
         })
     end
-    -- Fallback natif GTA
+    -- Fallback natif GTA (toujours affiché en cas de NUI non dispo)
     SetNotificationTextEntry('STRING')
     AddTextComponentString(message)
     DrawNotification(false, true)
 end
 
--- ─── Distance check ──────────────────────────────────────────────────────────
+-- ─── Distance ────────────────────────────────────────────────────────────────
 function IsWithinDistance(coords1, coords2, maxDist)
     return #(coords1 - coords2) <= maxDist
 end
@@ -85,7 +82,7 @@ function GetClosestPlayer(coords)
     return closestPlayer, closestDist
 end
 
--- ─── Texte 3D dans le monde ───────────────────────────────────────────────────
+-- ─── Texte 3D ────────────────────────────────────────────────────────────────
 function Draw3DText(coords, text)
     local onScreen, sx, sy = World3dToScreen2d(coords.x, coords.y, coords.z)
     local px, py, pz = table.unpack(GetGameplayCamCoords())
@@ -137,20 +134,18 @@ function FormatCoords(coords)
     return ('X:%.1f Y:%.1f Z:%.1f'):format(coords.x, coords.y, coords.z)
 end
 
--- ─── Permissions — ALIAS sécurisé ────────────────────────────────────────────
--- sync.lua est chargé après utils.lua et redéfinira ces fonctions.
--- Ces alias évitent une erreur si utils.lua est appelé avant sync.lua.
+-- ─── Permissions — ALIAS sécurisés ────────────────────────────────────────────
+-- sync.lua est chargé APRÈS ce fichier et redéfinira ces fonctions.
+-- Ces alias évitent une erreur si un module est appelé entre les deux chargements.
+-- FIX : hiérarchie identique à sync.lua { user=1, staff=2, moderator=3, admin=4, founder=5 }
+
 if not IsPlayerAdmin then
     function IsPlayerAdmin()
-        -- Fallback ACE si sync.lua pas encore chargé
         if Permissions and Permissions.group then
-            local h = { user = 1, moderator = 2, admin = 3, founder = 4 }
+            local h = { user = 1, staff = 2, moderator = 3, admin = 4, founder = 5 }
             return (h[Permissions.group] or 0) >= h['admin']
         end
-        for _, ace in pairs(Config.AdminGroups or {}) do
-            if IsPlayerAceAllowed(PlayerId(), ace) then return true end
-        end
-        return false
+        return IsPlayerAceAllowed(PlayerId(), 'admin')
     end
 end
 
@@ -162,15 +157,20 @@ if not GetAdminRole then
         if IsPlayerAceAllowed(PlayerId(), 'founder')   then return 'founder'   end
         if IsPlayerAceAllowed(PlayerId(), 'admin')     then return 'admin'     end
         if IsPlayerAceAllowed(PlayerId(), 'moderator') then return 'moderator' end
+        if IsPlayerAceAllowed(PlayerId(), 'staff')     then return 'staff'     end
         return nil
     end
 end
 
--- Vérifie si le joueur a un rôle staff (admin ou modérateur)
-function IsPlayerStaff()
-    if Permissions and Permissions.group then
-        local h = { user = 1, staff = 2, moderator = 3, admin = 4, founder = 5 }
-        return (h[Permissions.group] or 0) >= h['staff']
+-- FIX : IsPlayerStaff défini ici aussi pour le même ordre de chargement
+-- sync.lua l'écrasera avec la version définitive
+if not IsPlayerStaff then
+    function IsPlayerStaff()
+        if Permissions and Permissions.group then
+            local h = { user = 1, staff = 2, moderator = 3, admin = 4, founder = 5 }
+            return (h[Permissions.group] or 0) >= h['staff']
+        end
+        return IsPlayerAceAllowed(PlayerId(), 'staff')
+            or IsPlayerAceAllowed(PlayerId(), 'admin')
     end
-    return IsPlayerAdmin()
 end

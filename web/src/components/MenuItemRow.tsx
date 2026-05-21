@@ -14,11 +14,14 @@ interface Props {
 
 const SUBMENU_VARIANTS = {
   hidden:  { opacity: 0, x: -8,  scale: 0.97 },
-  visible: { opacity: 1, x: 0,   scale: 1,   transition: { duration: 0.16, ease: [0.16, 1, 0.3, 1] as const } },
-  exit:    { opacity: 0, x: -5,  scale: 0.98, transition: { duration: 0.1 } },
+  visible: {
+    opacity: 1, x: 0, scale: 1,
+    transition: { duration: 0.16, ease: [0.16, 1, 0.3, 1] as const },
+  },
+  exit: { opacity: 0, x: -5, scale: 0.98, transition: { duration: 0.1 } },
 }
 
-// Délai suffisant pour traverser le gap entre item et sous-menu
+// Délai pour traverser le gap entre item et sous-menu
 const CLOSE_DELAY = 200
 
 const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
@@ -31,11 +34,16 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
     ? `cm-item--${item.variant}` : ''
 
   const badgeStyle = item.badgeColor
-    ? { background: `${item.badgeColor}22`, color: item.badgeColor, borderColor: `${item.badgeColor}55` }
+    ? {
+        background:  `${item.badgeColor}22`,
+        color:       item.badgeColor,
+        borderColor: `${item.badgeColor}55`,
+      }
     : undefined
 
   const itemStyle = item.color ? { borderLeftColor: item.color } : undefined
 
+  // Détecte si le sous-menu doit s'ouvrir à gauche
   useEffect(() => {
     if (!open || !wrapperRef.current) return
     const rect = wrapperRef.current.getBoundingClientRect()
@@ -85,28 +93,22 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
   // Position du sous-menu
   const subLeft  = openLeft ? 'auto' : 'calc(100% + 2px)'
   const subRight = openLeft ? 'calc(100% + 2px)' : 'auto'
+  const subStyle: React.CSSProperties = { left: subLeft, right: subRight, top: '-4px' }
 
-  const subStyle: React.CSSProperties = {
-    left:  subLeft,
-    right: subRight,
-    top:   '-4px',
-  }
-
-  // FIX: Bridge invisible qui couvre le gap entre .cm-item et .cm-sub
-  // Empêche le mouseLeave de se déclencher quand on traverse ce gap
+  // Bridge invisible qui couvre le gap item → sous-menu (empêche mouseLeave prématuré)
   const bridgeStyle: React.CSSProperties = {
     position: 'absolute',
     top:      0,
     bottom:   0,
-    width:    '8px', // couvre le gap de 2px + marge de sécurité
+    width:    '8px',
     zIndex:   99,
-    // À gauche ou à droite selon l'ouverture
     ...(openLeft
       ? { right: 'calc(100% + 2px)', left: 'auto' }
       : { left:  'calc(100% + 2px)', right: 'auto' }
     ),
   }
 
+  // Checkbox
   if ('checked' in item) {
     return (
       <CheckboxItem
@@ -136,7 +138,9 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
         className={`cm-item ${variantClass} ${item.disabled ? 'cm-item--disabled' : ''}`.trim()}
         style={itemStyle}
         onClick={handleClick}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') handleClick()
+        }}
       >
         <div className="cm-item__left">
           {(item.icon || item.iconNode) && (
@@ -146,23 +150,29 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
           )}
           <div className="cm-item__text">
             <span className="cm-item__label">{item.label}</span>
-            {item.description && <span className="cm-item__desc">{item.description}</span>}
+            {item.description && (
+              <span className="cm-item__desc">{item.description}</span>
+            )}
           </div>
         </div>
 
         <div className="cm-item__right">
           {item.badge && (
-            <span className="cm-item__badge" style={badgeStyle}>{item.badge}</span>
+            <span className="cm-item__badge" style={badgeStyle}>
+              {item.badge}
+            </span>
           )}
           {item.submenu && item.submenu.length > 0 && (
-            <span className={`cm-item__arrow${open ? ' cm-item__arrow--open' : ''}`}>
+            <span
+              className={`cm-item__arrow${open ? ' cm-item__arrow--open' : ''}`}
+            >
               <ChevronRight size={14} />
             </span>
           )}
         </div>
       </div>
 
-      {/* FIX: Bridge invisible pour combler le gap item → sous-menu */}
+      {/* Bridge invisible pour combler le gap item → sous-menu */}
       {item.submenu && item.submenu.length > 0 && open && (
         <div
           style={bridgeStyle}
@@ -188,7 +198,14 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
               {item.submenu.map(sub =>
                 sub.divider
                   ? <div key={sub.id} className="cm-divider" />
-                  : <MenuItemRow key={sub.id} item={sub} onClose={onClose} depth={depth + 1} />
+                  : (
+                    <MenuItemRow
+                      key={sub.id}
+                      item={sub}
+                      onClose={onClose}
+                      depth={depth + 1}
+                    />
+                  )
               )}
             </motion.div>
           )}

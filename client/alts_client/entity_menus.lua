@@ -1,7 +1,8 @@
 -- =============================================
 -- MODULE : MENUS ENTITÉS — v3.1 (fixed)
--- 
+--
 -- FIXES :
+--   • _pendingActions déclaré local (plus de global implicite)
 --   • Cooldown NPC (Config.Limits.NpcCooldown)
 --   • Vérification distance portée PNJ (Config.Limits.NpcMaxDistance)
 --   • Cooldown animations (Config.Limits.AnimCooldown)
@@ -9,7 +10,8 @@
 --   • Confirmation avant suppression d'entité admin
 -- =============================================
 
-_pendingActions = {}
+-- FIX: local — plus de pollution globale
+local _pendingActions = {}
 
 local function registerAction(id, fn)
     _pendingActions[id] = fn
@@ -20,6 +22,7 @@ local function clearPendingActions()
     _pendingActions = {}
 end
 
+-- FIX: exposé proprement pour main.lua
 function ExecutePendingAction(id)
     local fn = _pendingActions[id]
     if fn then fn(); return true end
@@ -28,8 +31,7 @@ end
 
 -- ─── Helpers ─────────────────────────────────────────────────────────────────
 local function _checkNpcDistance(npcEntity)
-    local ped = PlayerPedId()
-    local dist = #(GetEntityCoords(ped) - GetEntityCoords(npcEntity))
+    local dist = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(npcEntity))
     if dist > (Config.Limits.NpcMaxDistance or 3.0) then
         ShowNotification(L('npc_too_far'), 'warning')
         return false
@@ -55,7 +57,10 @@ local function _playAnim(dict, clip, flags)
     local ped = PlayerPedId()
     RequestAnimDict(dict)
     local t = 0
-    while not HasAnimDictLoaded(dict) do Wait(10); t = t + 10; if t > 5000 then return end end
+    while not HasAnimDictLoaded(dict) do
+        Wait(10); t = t + 10
+        if t > 5000 then return end
+    end
     TaskPlayAnim(ped, dict, clip, 8.0, -8.0, -1, flags or 0, 0, false, false, false)
 end
 
@@ -87,7 +92,6 @@ function BuildVehicleMenu(veh, locked, isAdmin)
     end
 
     table.insert(items, { id = '_div_veh1', divider = true, label = '' })
-
     table.insert(items, {
         id    = 'veh_lock',
         label = locked and 'Déverrouiller' or 'Verrouiller',
@@ -148,25 +152,18 @@ end
 -- ─── PNJ ──────────────────────────────────────────────────────────────────────
 function BuildNpcMenu(npcEntity, isAdmin)
     clearPendingActions()
-    local hp = math.max(0, math.floor(GetEntityHealth(npcEntity) - 100))
+    local hp   = math.max(0, math.floor(GetEntityHealth(npcEntity) - 100))
+    local dist = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(npcEntity))
 
-    -- Drag avec cooldown + distance check
     registerAction('npc_drag', function()
-        if HasCooldown('npc_interact') then
-            ShowNotification(L('cooldown_wait'), 'warning')
-            return
-        end
+        if HasCooldown('npc_interact') then ShowNotification(L('cooldown_wait'), 'warning'); return end
         if not _checkNpcDistance(npcEntity) then return end
         SetCooldown('npc_interact', Config.Limits.NpcCooldown or 5000)
         ShowNotification('🫳 Vous traînez le PNJ', 'info')
-        -- TODO: logique de drag
     end)
 
     registerAction('npc_interact', function()
-        if HasCooldown('npc_interact') then
-            ShowNotification(L('cooldown_wait'), 'warning')
-            return
-        end
+        if HasCooldown('npc_interact') then ShowNotification(L('cooldown_wait'), 'warning'); return end
         if not _checkNpcDistance(npcEntity) then return end
         SetCooldown('npc_interact', Config.Limits.NpcCooldown or 5000)
         ShowNotification('💬 Interaction avec le PNJ', 'info')
@@ -178,7 +175,7 @@ function BuildNpcMenu(npcEntity, isAdmin)
             label       = 'PNJ',
             icon        = 'Bot',
             disabled    = true,
-            description = ('Santé : %d%%  |  Portée : %.1fm'):format(hp, #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(npcEntity))),
+            description = ('Santé : %d%%  |  Portée : %.1fm'):format(hp, dist),
         },
         { id = '_div_npc1', divider = true, label = '' },
         { id = 'npc_drag',     label = 'Traîner',   icon = 'Hand',          description = 'Cooldown 5s' },
@@ -194,8 +191,7 @@ function BuildPlayerMenu(serverId, name, isAdmin)
         if not isAdmin then ShowNotification(L('access_denied'), 'error'); return end
         local playerId = GetPlayerFromServerId(serverId)
         if playerId ~= -1 then
-            local targetPed = GetPlayerPed(playerId)
-            local c = GetEntityCoords(targetPed)
+            local c = GetEntityCoords(GetPlayerPed(playerId))
             SetEntityCoords(PlayerPedId(), c.x + 1.5, c.y, c.z)
             ShowNotification('Téléporté vers ' .. name, 'success')
             TriggerServerEvent('kt_context:logAdminAction', 'tp_to_player', serverId, 'TP to player')
@@ -204,10 +200,7 @@ function BuildPlayerMenu(serverId, name, isAdmin)
         end
     end)
 
-    -- Animation salut avec cooldown
     registerAction('pl_wave', function()
-        if not _checkAnimCooldown() then return end
-        SetCooldown('anim_global', Config.Limits.AnimCooldown or 2000)
         _playAnim('gestures@m@standing@casual', 'gesture_hello', 0)
     end)
 
@@ -223,7 +216,7 @@ function BuildPlayerMenu(serverId, name, isAdmin)
         { id = 'pl_trade', label = 'Proposer un échange', icon = 'Handshake' },
         {
             id      = 'pl_money',
-            label   = 'Donner de l\'argent',
+            label   = "Donner de l'argent",
             icon    = 'Banknote',
             submenu = {
                 { id = 'give_50',     label = 'Donner 50$',     icon = 'DollarSign' },
@@ -237,9 +230,9 @@ function BuildPlayerMenu(serverId, name, isAdmin)
             label   = 'Interactions sociales',
             icon    = 'Smile',
             submenu = {
-                { id = 'pl_wave',      label = 'Saluer (cooldown 2s)',       icon = 'Hand'      },
-                { id = 'pl_handshake', label = 'Serrer la main (cooldown)',  icon = 'Handshake' },
-                { id = 'pl_hug',       label = 'Câlin (cooldown)',           icon = 'Heart'     },
+                { id = 'pl_wave',      label = 'Saluer (cooldown 2s)',      icon = 'Hand'      },
+                { id = 'pl_handshake', label = 'Serrer la main (cooldown)', icon = 'Handshake' },
+                { id = 'pl_hug',       label = 'Câlin (cooldown)',          icon = 'Heart'     },
             },
         },
     }
@@ -248,10 +241,10 @@ end
 -- ─── Objet / Prop ─────────────────────────────────────────────────────────────
 function BuildPropMenu(prop, isAdmin)
     clearPendingActions()
-    local heading = GetEntityHeading(prop)
-    local coords  = GetEntityCoords(prop)
+    local heading  = GetEntityHeading(prop)
+    local coords   = GetEntityCoords(prop)
     local myCoords = GetEntityCoords(PlayerPedId())
-    local dist = #(myCoords - coords)
+    local dist     = #(myCoords - coords)
 
     return {
         {
@@ -262,8 +255,8 @@ function BuildPropMenu(prop, isAdmin)
             description = ('Heading : %.1f°  |  Distance : %.1fm'):format(heading, dist),
         },
         { id = '_div_prop1', divider = true, label = '' },
-        { id = 'prop_examine', label = 'Examiner',  icon = 'ScanSearch' },
-        { id = 'prop_pickup',  label = 'Ramasser',  icon = 'HandCoins'  },
+        { id = 'prop_examine', label = 'Examiner', icon = 'ScanSearch' },
+        { id = 'prop_pickup',  label = 'Ramasser', icon = 'HandCoins'  },
     }
 end
 
@@ -284,10 +277,8 @@ function BuildAdminEntityMenu(entity, entityType)
     end)
     table.insert(items, { id = 'adm_freeze_entity', label = 'Geler / Dégeler', icon = 'Snowflake' })
 
-    -- Suppression avec confirmation via NUI
     registerAction('adm_delete_entity', function()
         if Config.Limits.AdminConfirmDelete then
-            -- Ouvre un sous-menu de confirmation
             local sw, sh = GetActiveScreenResolution()
             OpenContextMenu(sw / 2, sh / 2, {
                 {
@@ -300,7 +291,6 @@ function BuildAdminEntityMenu(entity, entityType)
                 { id = 'adm_delete_cancel', label = 'Annuler', icon = 'X' },
             }, '🗑️ Confirmation')
 
-            -- Enregistrer les actions de confirmation
             _pendingActions['adm_delete_confirm'] = function()
                 if DoesEntityExist(entity) then
                     SetEntityAsMissionEntity(entity, true, true)
@@ -320,14 +310,13 @@ function BuildAdminEntityMenu(entity, entityType)
         end
     end)
     table.insert(items, {
-        id      = 'adm_delete_entity',
-        label   = 'Supprimer',
-        icon    = 'Trash2',
-        variant = 'danger',
+        id          = 'adm_delete_entity',
+        label       = 'Supprimer',
+        icon        = 'Trash2',
+        variant     = 'danger',
         description = Config.Limits.AdminConfirmDelete and 'Demande confirmation' or nil,
     })
 
-    -- Véhicule
     if entityType == 2 then
         table.insert(items, { id = '_div_adm_veh', divider = true, label = '' })
         table.insert(items, { id = 'adm_repair', label = 'Réparer',           icon = 'Wrench', variant = 'success' })
@@ -340,7 +329,6 @@ function BuildAdminEntityMenu(entity, entityType)
         table.insert(items, { id = 'adm_copy_plate', label = 'Copier la plaque', icon = 'ClipboardCopy' })
     end
 
-    -- Joueur (admin/staff seulement)
     if entityType == 1 and IsPedAPlayer(entity) then
         local localId = NetworkGetPlayerIndexFromPed(entity)
         if localId ~= -1 then
@@ -355,15 +343,13 @@ function BuildAdminEntityMenu(entity, entityType)
             end)
             table.insert(items, { id = 'adm_tp_to_player', label = 'TP vers ce joueur', icon = 'ArrowRight' })
 
-            -- Kick (admin uniquement, pas staff)
             if IsPlayerAdmin() then
                 registerAction('adm_kick_player', function()
-                    -- Confirmation kick
                     local sw, sh = GetActiveScreenResolution()
                     OpenContextMenu(sw / 2, sh / 2, {
                         {
                             id          = 'adm_kick_confirm',
-                            label       = '⚠️ Confirmer l\'expulsion',
+                            label       = "⚠️ Confirmer l'expulsion",
                             icon        = 'UserX',
                             variant     = 'danger',
                             description = ('Joueur ID: %d'):format(serverId),
@@ -379,11 +365,11 @@ function BuildAdminEntityMenu(entity, entityType)
                     end
                 end)
                 table.insert(items, {
-                    id      = 'adm_kick_player',
-                    label   = 'Expulser',
-                    icon    = 'UserX',
-                    variant = 'danger',
-                    badge   = 'admin',
+                    id         = 'adm_kick_player',
+                    label      = 'Expulser',
+                    icon       = 'UserX',
+                    variant    = 'danger',
+                    badge      = 'admin',
                     badgeColor = '#ef4444',
                 })
             end

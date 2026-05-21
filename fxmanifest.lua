@@ -29,11 +29,14 @@ client_scripts {
     'client/alts_client/entity_menus.lua',
     'client/alts_client/cursor.lua',
 
-    -- ROTATION SYSTEM CLEAN
+    -- ROTATION SYSTEM
+    -- dataview doit être chargé AVANT gizmo et client
+    'client/alts_client/rotation/dataview.lua',
+    'client/alts_client/rotation/client.lua',
     'client/alts_client/rotation/gizmo.lua',
 
+    -- Exemples (glob unique, pas de doublon)
     'client/examples/*.lua',
-    'client/examples/test.lua',
 }
 
 server_scripts {
@@ -61,7 +64,5 @@ exports {
     'PlaceProp',
     'DeleteProp',
     'OpenPropMenu',
-
-    -- 🔥 ADD THIS
-    'useGizmo'
+    'useGizmo',
 }
