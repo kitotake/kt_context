@@ -25,20 +25,9 @@ export function useContextMenu() {
     setState(prev => ({ ...prev, visible: false }))
   }, [])
 
-  /* ── Écoute NUI (FiveM build) ─────────────────────────────────────────────
-     Lua envoie x/y en PIXELS ABSOLUS calculés via :
-       GetScreenCoordFromWorldCoord(hitCoords) → sx, sy ∈ [0..1]
-       px = math.floor(sx * screenWidth)
-       py = math.floor(sy * screenHeight)
-     Utilisés directement en CSS left/top.
-  ────────────────────────────────────────────────────────────────────────── */
   useNuiEvent<{
-    x:        number
-    y:        number
-    items:    MenuItem[]
-    title?:   string
-    theme?:   'dark' | 'light'
-    animate?: boolean
+    x: number; y: number; items: MenuItem[]
+    title?: string; theme?: 'dark' | 'light'; animate?: boolean
   }>('openContextMenu', data => {
     document.body.style.visibility = 'visible'
     setState({

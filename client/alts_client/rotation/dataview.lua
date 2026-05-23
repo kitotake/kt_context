@@ -1,6 +1,5 @@
 -- Credit: https://github.com/citizenfx/lua/blob/luaglm-dev/cfx/libs/scripts/examples/dataview.lua
 -- FIX : exposé en global _G.dataView pour que gizmo.lua puisse y accéder
--- sans require (les require dans FiveM ont des contraintes de chemin strictes)
 
 local dataView = setmetatable({
     EndBig = ">",
@@ -114,8 +113,8 @@ for label, datatype in pairs(dataView.FixedTypes) do
         if offset >= 0 then
             local o = self.offset + offset
             if (o + typelen - 1) <= self.length then
-                local code   = ef(endian) .. 'c' .. tostring(typelen)
-                local v, _   = self.blob:blob_unpack(o, code)
+                local code = ef(endian) .. 'c' .. tostring(typelen)
+                local v, _ = self.blob:blob_unpack(o, code)
                 return v
             end
         end
@@ -137,7 +136,5 @@ for label, datatype in pairs(dataView.FixedTypes) do
     end
 end
 
--- FIX : exposer en global pour que gizmo.lua puisse y accéder directement
 _G.dataView = dataView
-
 return dataView

@@ -13,7 +13,7 @@ interface Props {
 }
 
 const SUBMENU_VARIANTS = {
-  hidden:  { opacity: 0, x: -8,  scale: 0.97 },
+  hidden:  { opacity: 0, x: -8, scale: 0.97 },
   visible: {
     opacity: 1, x: 0, scale: 1,
     transition: { duration: 0.16, ease: [0.16, 1, 0.3, 1] as const },
@@ -21,7 +21,6 @@ const SUBMENU_VARIANTS = {
   exit: { opacity: 0, x: -5, scale: 0.98, transition: { duration: 0.1 } },
 }
 
-// Délai pour traverser le gap entre item et sous-menu
 const CLOSE_DELAY = 200
 
 const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
@@ -43,7 +42,6 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
 
   const itemStyle = item.color ? { borderLeftColor: item.color } : undefined
 
-  // Détecte si le sous-menu doit s'ouvrir à gauche
   useEffect(() => {
     if (!open || !wrapperRef.current) return
     const rect = wrapperRef.current.getBoundingClientRect()
@@ -80,36 +78,28 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
   }, [item, onClose])
 
   const handleMouseEnter = useCallback(() => {
-    if (item.submenu?.length) {
-      cancelClose()
-      setOpen(true)
-    }
+    if (item.submenu?.length) { cancelClose(); setOpen(true) }
   }, [item.submenu, cancelClose])
 
   const handleMouseLeave = useCallback(() => {
     if (item.submenu?.length) scheduleClose()
   }, [item.submenu, scheduleClose])
 
-  // Position du sous-menu
   const subLeft  = openLeft ? 'auto' : 'calc(100% + 2px)'
   const subRight = openLeft ? 'calc(100% + 2px)' : 'auto'
   const subStyle: React.CSSProperties = { left: subLeft, right: subRight, top: '-4px' }
 
-  // Bridge invisible qui couvre le gap item → sous-menu (empêche mouseLeave prématuré)
   const bridgeStyle: React.CSSProperties = {
     position: 'absolute',
-    top:      0,
-    bottom:   0,
-    width:    '8px',
-    zIndex:   99,
+    top: 0, bottom: 0, width: '8px', zIndex: 99,
     ...(openLeft
       ? { right: 'calc(100% + 2px)', left: 'auto' }
-      : { left:  'calc(100% + 2px)', right: 'auto' }
+      : { left: 'calc(100% + 2px)',  right: 'auto' }
     ),
   }
 
-  // Checkbox
-  if ('checked' in item) {
+  // ── Rendu checkbox ──────────────────────────────────────────────────────────
+  if (item.type === 'checkbox' || 'checked' in item) {
     return (
       <CheckboxItem
         id={item.id}
@@ -138,9 +128,7 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
         className={`cm-item ${variantClass} ${item.disabled ? 'cm-item--disabled' : ''}`.trim()}
         style={itemStyle}
         onClick={handleClick}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') handleClick()
-        }}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
       >
         <div className="cm-item__left">
           {(item.icon || item.iconNode) && (
@@ -163,16 +151,14 @@ const MenuItemRow: FC<Props> = ({ item, onClose, depth = 0 }) => {
             </span>
           )}
           {item.submenu && item.submenu.length > 0 && (
-            <span
-              className={`cm-item__arrow${open ? ' cm-item__arrow--open' : ''}`}
-            >
+            <span className={`cm-item__arrow${open ? ' cm-item__arrow--open' : ''}`}>
               <ChevronRight size={14} />
             </span>
           )}
         </div>
       </div>
 
-      {/* Bridge invisible pour combler le gap item → sous-menu */}
+      {/* Bridge gap item → sous-menu */}
       {item.submenu && item.submenu.length > 0 && open && (
         <div
           style={bridgeStyle}

@@ -26,7 +26,6 @@ function Validators.MenuItems(items)
         if not ok then
             return false, ('item[%d]: %s'):format(i, reason)
         end
-        -- Récursion sur les sous-menus
         if item.submenu then
             local subOk, subReason = Validators.MenuItems(item.submenu)
             if not subOk then

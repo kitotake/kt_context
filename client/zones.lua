@@ -1,7 +1,5 @@
 -- =============================================
--- ZONES INTERACTIVES — FIXED
--- FIX: OpenContextMenu gère maintenant son propre focus si curseur inactif
--- Pas de changement fonctionnel ici, mais on utilise la touche E correctement
+-- ZONES INTERACTIVES — v3.2
 -- =============================================
 
 local registeredZones = {}
@@ -23,16 +21,11 @@ function RegisterMenuZone(zoneData)
     zoneData.heading = zoneData.heading or 0.0
 
     registeredZones[zoneData.id] = zoneData
-    print(('[KT Context] Zone enregistrée: %s (%s r=%.1f)'):format(
-        zoneData.id, zoneData.shape, zoneData.radius))
     return zoneData.id
 end
 
 function RemoveMenuZone(zoneId)
-    if registeredZones[zoneId] then
-        registeredZones[zoneId] = nil
-        print(('[KT Context] Zone supprimée: %s'):format(zoneId))
-    end
+    registeredZones[zoneId] = nil
 end
 
 Citizen.CreateThread(function()
@@ -47,8 +40,7 @@ Citizen.CreateThread(function()
                 local inside = false
 
                 if zone.shape == 'circle' then
-                    local dist = #(coords - zone.coords)
-                    inside = dist < zone.radius
+                    inside = #(coords - zone.coords) < zone.radius
                 elseif zone.shape == 'box' then
                     inside = IsPointInAngledArea(
                         coords.x, coords.y, coords.z,
@@ -58,8 +50,7 @@ Citizen.CreateThread(function()
                         zone.coords.x + zone.size.x / 2,
                         zone.coords.y + zone.size.y / 2,
                         zone.coords.z + zone.size.z,
-                        zone.heading,
-                        false
+                        zone.heading, false
                     )
                 end
 
@@ -70,7 +61,7 @@ Citizen.CreateThread(function()
                     if zone.marker then
                         local m = zone.marker
                         local c = m.color or { r=59, g=130, b=246, a=120 }
-                        local s = m.size  or vector3(zone.radius * 2, zone.radius * 2, 0.3)
+                        local s = m.size  or vector3(zone.radius*2, zone.radius*2, 0.3)
                         DrawMarker(
                             m.type or 2,
                             zone.coords.x, zone.coords.y, zone.coords.z + 0.02,
@@ -88,11 +79,9 @@ Citizen.CreateThread(function()
                         EndTextCommandDisplayHelp(0, false, true, -1)
                     end
 
-                    -- FIX: On n'ouvre le menu depuis une zone que si le menu n'est pas déjà ouvert
-                    -- et que le curseur n'est pas actif (le curseur a sa propre logique)
                     if IsControlJustReleased(0, 38) and not IsMenuOpen() and not IsCursorActive() then
                         local sw, sh = GetActiveScreenResolution()
-                        OpenContextMenu(sw / 2, sh / 2, zone.items, zone.title or 'Zone')
+                        OpenContextMenu(sw/2, sh/2, zone.items, zone.title or 'Zone')
                     end
                     break
                 end

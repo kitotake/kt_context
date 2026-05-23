@@ -1,8 +1,5 @@
 -- =============================================
 -- UTILS CLIENT — v3.2
--- FIX : IsPlayerAdmin() et GetAdminRole() définis ici en ALIAS sécurisé
---       → sync.lua les écrase définitivement (chargé après)
--- FIX : IsPlayerStaff() utilise la même hiérarchie que sync.lua
 -- =============================================
 
 -- ─── Cooldown système ─────────────────────────────────────────────────────────
@@ -33,7 +30,6 @@ function ShowNotification(message, notifType)
             data = { message = message, type = notifType, duration = 3000 }
         })
     end
-    -- Fallback natif GTA (toujours affiché en cas de NUI non dispo)
     SetNotificationTextEntry('STRING')
     AddTextComponentString(message)
     DrawNotification(false, true)
@@ -134,15 +130,11 @@ function FormatCoords(coords)
     return ('X:%.1f Y:%.1f Z:%.1f'):format(coords.x, coords.y, coords.z)
 end
 
--- ─── Permissions — ALIAS sécurisés ────────────────────────────────────────────
--- sync.lua est chargé APRÈS ce fichier et redéfinira ces fonctions.
--- Ces alias évitent une erreur si un module est appelé entre les deux chargements.
--- FIX : hiérarchie identique à sync.lua { user=1, staff=2, moderator=3, admin=4, founder=5 }
-
+-- ─── Permissions — ALIAS sécurisés (sync.lua les écrase définitivement) ───────
 if not IsPlayerAdmin then
     function IsPlayerAdmin()
         if Permissions and Permissions.group then
-            local h = { user = 1, staff = 2, moderator = 3, admin = 4, founder = 5 }
+            local h = { user=1, staff=2, moderator=3, admin=4, founder=5 }
             return (h[Permissions.group] or 0) >= h['admin']
         end
         return IsPlayerAceAllowed(PlayerId(), 'admin')
@@ -162,12 +154,10 @@ if not GetAdminRole then
     end
 end
 
--- FIX : IsPlayerStaff défini ici aussi pour le même ordre de chargement
--- sync.lua l'écrasera avec la version définitive
 if not IsPlayerStaff then
     function IsPlayerStaff()
         if Permissions and Permissions.group then
-            local h = { user = 1, staff = 2, moderator = 3, admin = 4, founder = 5 }
+            local h = { user=1, staff=2, moderator=3, admin=4, founder=5 }
             return (h[Permissions.group] or 0) >= h['staff']
         end
         return IsPlayerAceAllowed(PlayerId(), 'staff')

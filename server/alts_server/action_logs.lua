@@ -1,7 +1,6 @@
 -- =============================================
 -- LOGS D'ACTIONS SERVEUR — v3.2
--- FIX : ce fichier est la SOURCE UNIQUE du handler 'kt_context:logAdminAction'
---       (admin.lua ne doit PAS redéfinir ce handler)
+-- SOURCE UNIQUE du handler 'kt_context:logAdminAction'
 -- =============================================
 
 ActionLogs = { logs = {}, maxLogs = 1000 }
@@ -18,9 +17,7 @@ function ActionLogs:Add(src, actionType, action, data)
         date       = os.date('%Y-%m-%d %H:%M:%S'),
     }
     table.insert(self.logs, 1, entry)
-    if #self.logs > self.maxLogs then
-        table.remove(self.logs)
-    end
+    if #self.logs > self.maxLogs then table.remove(self.logs) end
     print(('[KT Log] [%s] %s (%d) — %s: %s'):format(
         entry.date, entry.playerName, src, actionType, action))
     return entry
@@ -28,18 +25,14 @@ end
 
 function ActionLogs:GetLast(n)
     local result = {}
-    for i = 1, math.min(n or 10, #self.logs) do
-        result[i] = self.logs[i]
-    end
+    for i = 1, math.min(n or 10, #self.logs) do result[i] = self.logs[i] end
     return result
 end
 
 function ActionLogs:GetByPlayer(src)
     local result = {}
     for _, log in ipairs(self.logs) do
-        if log.source == src then
-            table.insert(result, log)
-        end
+        if log.source == src then table.insert(result, log) end
     end
     return result
 end
@@ -60,8 +53,7 @@ AddEventHandler('kt_context:logPlayerAction', function(action, targetId)
     ActionLogs:Add(source, 'player', action, { targetId = targetId })
 end)
 
--- FIX : handler UNIQUE pour logAdminAction (supprimé dans admin.lua)
--- La vérification ACE est faite ici ; si Permissions est chargé, on l'utilise en priorité.
+-- FIX : handler UNIQUE ici (supprimé dans admin.lua)
 RegisterServerEvent('kt_context:logAdminAction')
 AddEventHandler('kt_context:logAdminAction', function(action, targetId, reason)
     local src = source
@@ -71,8 +63,7 @@ AddEventHandler('kt_context:logAdminAction', function(action, targetId, reason)
         or IsPlayerAceAllowed(src, 'moderator')
 
     if not isStaff then
-        ActionLogs:Add(src, 'suspicious', 'admin_attempt_' .. tostring(action),
-            { warning = 'Non autorisé' })
+        ActionLogs:Add(src, 'suspicious', 'admin_attempt_' .. tostring(action), { warning = 'Non autorisé' })
         return
     end
     ActionLogs:Add(src, 'admin', action, { targetId = targetId, reason = reason })

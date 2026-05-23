@@ -1,55 +1,24 @@
--- ─────────────────────────────────────────────
--- client/alts_client/rotation/gizmo.lua
--- Système de rotation/translation d'entités avec gizmo natif.
--- FIX : suppression de la dépendance ox_lib (lib.locale, lib.addKeybind,
---       lib.showTextUI, cache.playerId, cache.ped) → remplacé par des
---       équivalents FiveM vanilla.
--- ─────────────────────────────────────────────
+-- =============================================
+-- GIZMO ROTATION — v3.2
+-- Suppression dépendances ox_lib → FiveM vanilla
+-- =============================================
 
--- FIX: require avec le chemin relatif au fichier (pas 'client.dataview')
--- dataview est chargé via fxmanifest avant ce fichier, donc accessible en global.
--- On l'utilise directement sans require pour éviter les problèmes de chemin.
-local dataview = dataView  -- exporté en global par dataview.lua (setmetatable __call)
+local dataview       = dataView
+local enableScale    = false
+local isCursorActive = false
+local gizmoEnabled   = false
+local currentMode    = 'translate'
+local isRelative     = false
+local currentEntity  = nil
 
-local enableScale     = false
-local isCursorActive  = false
-local gizmoEnabled    = false
-local currentMode     = 'translate'
-local isRelative      = false
-local currentEntity   = nil
+local function _playerId() return PlayerId() end
+local function _ped()      return PlayerPedId() end
 
--- ─── Utilitaires (remplaçants ox_lib) ────────────────────────────────────────
-
-local function _playerId()
-    return PlayerId()
-end
-
-local function _ped()
-    return PlayerPedId()
-end
-
-local function _showHint(text)
-    BeginTextCommandDisplayHelp('STRING')
-    AddTextComponentSubstringPlayerName(text)
-    EndTextCommandDisplayHelp(0, false, true, -1)
-end
-
-local function _notification(msg)
-    SetNotificationTextEntry('STRING')
-    AddTextComponentString(msg)
-    DrawNotification(false, true)
-    -- NUI notification si disponible
-    if SendNUIMessage then
-        SendNUIMessage({ type = 'notification', data = { message = msg, type = 'info', duration = 3000 } })
-    end
-end
-
--- Affiche le texte UI via DrawText natif (coin haut-gauche)
-local _hintLines = {}
+local _hintLines  = {}
 local _hintActive = false
 
 local function _setTextUI(text)
-    _hintLines = {}
+    _hintLines  = {}
     _hintActive = (text ~= nil and text ~= '')
     if text then
         for line in text:gmatch('[^\n]+') do
@@ -58,7 +27,6 @@ local function _setTextUI(text)
     end
 end
 
--- Thread d'affichage du hint gizmo
 Citizen.CreateThread(function()
     while true do
         if _hintActive and #_hintLines > 0 then
@@ -83,47 +51,38 @@ Citizen.CreateThread(function()
     end
 end)
 
--- ─── Maths ───────────────────────────────────────────────────────────────────
-
 local function normalize(x, y, z)
-    local length = math.sqrt(x * x + y * y + z * z)
+    local length = math.sqrt(x*x + y*y + z*z)
     if length == 0 then return 0, 0, 0 end
-    return x / length, y / length, z / length
+    return x/length, y/length, z/length
 end
 
 local function makeEntityMatrix(entity)
     local f, r, u, a = GetEntityMatrix(entity)
-    -- FIX: dataview peut être nil si le require a échoué silencieusement
     if not dataview then
         print('[KT Gizmo] ERREUR: dataview non chargé')
         return nil
     end
     local view = dataview.ArrayBuffer(64)
-
-    view:SetFloat32(0,  r[1]) :SetFloat32(4,  r[2]) :SetFloat32(8,  r[3]) :SetFloat32(12, 0)
-        :SetFloat32(16, f[1]) :SetFloat32(20, f[2]) :SetFloat32(24, f[3]) :SetFloat32(28, 0)
-        :SetFloat32(32, u[1]) :SetFloat32(36, u[2]) :SetFloat32(40, u[3]) :SetFloat32(44, 0)
-        :SetFloat32(48, a[1]) :SetFloat32(52, a[2]) :SetFloat32(56, a[3]) :SetFloat32(60, 1)
-
+    view:SetFloat32(0,  r[1]):SetFloat32(4,  r[2]):SetFloat32(8,  r[3]):SetFloat32(12, 0)
+        :SetFloat32(16, f[1]):SetFloat32(20, f[2]):SetFloat32(24, f[3]):SetFloat32(28, 0)
+        :SetFloat32(32, u[1]):SetFloat32(36, u[2]):SetFloat32(40, u[3]):SetFloat32(44, 0)
+        :SetFloat32(48, a[1]):SetFloat32(52, a[2]):SetFloat32(56, a[3]):SetFloat32(60, 1)
     return view
 end
 
 local function applyEntityMatrix(entity, view)
-    local x1, y1, z1 = view:GetFloat32(16), view:GetFloat32(20), view:GetFloat32(24)
-    local x2, y2, z2 = view:GetFloat32(0),  view:GetFloat32(4),  view:GetFloat32(8)
-    local x3, y3, z3 = view:GetFloat32(32), view:GetFloat32(36), view:GetFloat32(40)
-    local tx, ty, tz = view:GetFloat32(48), view:GetFloat32(52), view:GetFloat32(56)
-
+    local x1,y1,z1 = view:GetFloat32(16), view:GetFloat32(20), view:GetFloat32(24)
+    local x2,y2,z2 = view:GetFloat32(0),  view:GetFloat32(4),  view:GetFloat32(8)
+    local x3,y3,z3 = view:GetFloat32(32), view:GetFloat32(36), view:GetFloat32(40)
+    local tx,ty,tz = view:GetFloat32(48), view:GetFloat32(52), view:GetFloat32(56)
     if not enableScale then
-        x1, y1, z1 = normalize(x1, y1, z1)
-        x2, y2, z2 = normalize(x2, y2, z2)
-        x3, y3, z3 = normalize(x3, y3, z3)
+        x1,y1,z1 = normalize(x1,y1,z1)
+        x2,y2,z2 = normalize(x2,y2,z2)
+        x3,y3,z3 = normalize(x3,y3,z3)
     end
-
-    SetEntityMatrix(entity, x1, y1, z1, x2, y2, z2, x3, y3, z3, tx, ty, tz)
+    SetEntityMatrix(entity, x1,y1,z1, x2,y2,z2, x3,y3,z3, tx,ty,tz)
 end
-
--- ─── Boucle principale ───────────────────────────────────────────────────────
 
 local function GetVectorText(vectorType)
     if not currentEntity then return 'ERR_NO_ENTITY' end
@@ -164,7 +123,6 @@ local function gizmoLoop(entity)
     while gizmoEnabled and DoesEntityExist(entity) do
         Wait(0)
 
-        -- [G] : toggle curseur
         if IsControlJustPressed(0, 47) then
             if isCursorActive then
                 LeaveCursorMode()
@@ -175,12 +133,11 @@ local function gizmoLoop(entity)
             end
         end
 
-        DisableControlAction(0, 24,  true)   -- LMB
-        DisableControlAction(0, 25,  true)   -- RMB
-        DisableControlAction(0, 140, true)   -- R (reload)
+        DisableControlAction(0, 24,  true)
+        DisableControlAction(0, 25,  true)
+        DisableControlAction(0, 140, true)
         DisablePlayerFiring(_playerId(), true)
 
-        -- Mise à jour du hint
         _setTextUI(buildHintText())
 
         local matrixBuffer = makeEntityMatrix(entity)
@@ -189,13 +146,10 @@ local function gizmoLoop(entity)
                 0xEB2EDCA2, matrixBuffer:Buffer(), 'Editor1',
                 Citizen.ReturnResultAnyway()
             )
-            if changed then
-                applyEntityMatrix(entity, matrixBuffer)
-            end
+            if changed then applyEntityMatrix(entity, matrixBuffer) end
         end
     end
 
-    -- Nettoyage
     _setTextUI(nil)
     if isCursorActive then LeaveCursorMode() end
     isCursorActive = false
@@ -209,8 +163,6 @@ local function gizmoLoop(entity)
     currentEntity = nil
 end
 
--- ─── Export principal ─────────────────────────────────────────────────────────
--- Bloquant : retourne quand le gizmo est fermé (ENTRÉE)
 local function useGizmo(entity)
     if not entity or not DoesEntityExist(entity) then
         print('[KT Gizmo] useGizmo: entité invalide')
@@ -218,7 +170,7 @@ local function useGizmo(entity)
     end
     gizmoEnabled  = true
     currentEntity = entity
-    gizmoLoop(entity)   -- bloquant via Wait(0)
+    gizmoLoop(entity)
     return {
         handle   = entity,
         position = GetEntityCoords(entity),
@@ -228,61 +180,42 @@ end
 
 exports('useGizmo', useGizmo)
 
--- ─── Keybinds vanilla ────────────────────────────────────────────────────────
--- Gérés via Citizen.CreateThread + IsControlJustPressed pour éviter ox_lib
-
--- [ENTRÉE] : ferme le gizmo
 Citizen.CreateThread(function()
     while true do
         Wait(0)
         if gizmoEnabled then
-            if IsControlJustPressed(0, 18) then  -- RETURN / ENTER
-                gizmoEnabled = false
-            end
-            if IsControlJustPressed(0, 44) then  -- W
+            if IsControlJustPressed(0, 18) then gizmoEnabled = false end
+            if IsControlJustPressed(0, 44) then
                 currentMode = 'Translate'
-                ExecuteCommand('+gizmoTranslation')
-                Wait(100)
-                ExecuteCommand('-gizmoTranslation')
+                ExecuteCommand('+gizmoTranslation'); Wait(100); ExecuteCommand('-gizmoTranslation')
             end
-            if IsControlJustPressed(0, 45) then  -- E → R (contrôle 45 = E en QWERTY)
+            if IsControlJustPressed(0, 45) then
                 currentMode = 'Rotate'
-                ExecuteCommand('+gizmoRotation')
-                Wait(100)
-                ExecuteCommand('-gizmoRotation')
+                ExecuteCommand('+gizmoRotation'); Wait(100); ExecuteCommand('-gizmoRotation')
             end
-            if IsControlJustPressed(0, 36) then  -- Q
+            if IsControlJustPressed(0, 36) then
                 isRelative = not isRelative
-                ExecuteCommand('+gizmoLocal')
-                Wait(100)
-                ExecuteCommand('-gizmoLocal')
+                ExecuteCommand('+gizmoLocal'); Wait(100); ExecuteCommand('-gizmoLocal')
             end
-            if IsControlJustPressed(0, 19) then  -- LALT → snap au sol
+            if IsControlJustPressed(0, 19) then
                 if currentEntity and DoesEntityExist(currentEntity) then
                     PlaceObjectOnGroundProperly_2(currentEntity)
                 end
             end
-            if enableScale and IsControlJustPressed(0, 33) then  -- S
+            if enableScale and IsControlJustPressed(0, 33) then
                 currentMode = 'Scale'
-                ExecuteCommand('+gizmoScale')
-                Wait(100)
-                ExecuteCommand('-gizmoScale')
+                ExecuteCommand('+gizmoScale'); Wait(100); ExecuteCommand('-gizmoScale')
             end
         end
     end
 end)
 
--- Sélection gizmo (LMB via thread séparé pour ne pas dépendre ox_lib)
 Citizen.CreateThread(function()
     while true do
         Wait(0)
         if gizmoEnabled then
-            if IsDisabledControlJustPressed(0, 24) then
-                ExecuteCommand('+gizmoSelect')
-            end
-            if IsDisabledControlJustReleased(0, 24) then
-                ExecuteCommand('-gizmoSelect')
-            end
+            if IsDisabledControlJustPressed(0, 24)  then ExecuteCommand('+gizmoSelect') end
+            if IsDisabledControlJustReleased(0, 24) then ExecuteCommand('-gizmoSelect') end
         end
     end
 end)

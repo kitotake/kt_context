@@ -1,9 +1,7 @@
 -- =============================================
--- ADMIN SERVEUR — v3.1 (fixed)
--- FIX : suppression du double AddEventHandler('kt_context:logAdminAction')
---       → ce handler est UNIQUEMENT dans action_logs.lua
--- FIX : rate limiting sur kick/freeze/spectate
--- FIX : staff peut heal mais pas kick/ban
+-- ADMIN SERVEUR — v3.2
+-- FIX : handler logAdminAction UNIQUEMENT dans action_logs.lua
+-- FIX : rate limiting kick/freeze/spectate
 -- =============================================
 Admin = {}
 
@@ -26,10 +24,8 @@ RegisterServerEvent('kt_context:admin:kick')
 AddEventHandler('kt_context:admin:kick', function(targetId, reason)
     local src = source
     if not Admin.IsAdmin(src) then
-        print(('[KT Admin] Tentative kick non autorisee par %d'):format(src))
-        if ActionLogs then
-            ActionLogs:Add(src, 'suspicious', 'kick_attempt', { target = targetId })
-        end
+        print(('[KT Admin] Tentative kick non autorisée par %d'):format(src))
+        if ActionLogs then ActionLogs:Add(src, 'suspicious', 'kick_attempt', { target = targetId }) end
         return
     end
     if IsRateLimited and IsRateLimited(src, 'admin_kick', 3000) then
@@ -42,9 +38,7 @@ AddEventHandler('kt_context:admin:kick', function(targetId, reason)
     end
     DropPlayer(targetId, reason or 'Expulsé par un administrateur')
     TriggerClientEvent('kt_context:notify', src, ('Joueur %d expulsé'):format(targetId), 'success')
-    if ActionLogs then
-        ActionLogs:Add(src, 'admin', 'kick', { target = targetId, reason = reason })
-    end
+    if ActionLogs then ActionLogs:Add(src, 'admin', 'kick', { target = targetId, reason = reason }) end
 end)
 
 -- ─── Freeze ───────────────────────────────────────────────────────────────────
@@ -66,7 +60,7 @@ AddEventHandler('kt_context:admin:spectate', function(targetId)
     if ActionLogs then ActionLogs:Add(src, 'admin', 'spectate', { target = targetId }) end
 end)
 
--- ─── Heal d'un joueur cible (staff autorisé) ──────────────────────────────────
+-- ─── Heal cible ───────────────────────────────────────────────────────────────
 RegisterServerEvent('kt_context:admin:healTarget')
 AddEventHandler('kt_context:admin:healTarget', function(targetId)
     local src = source
@@ -78,10 +72,7 @@ AddEventHandler('kt_context:admin:healTarget', function(targetId)
     if ActionLogs then ActionLogs:Add(src, 'admin', 'heal_target', { target = targetId }) end
 end)
 
--- NOTE : 'kt_context:logAdminAction' est géré UNIQUEMENT dans action_logs.lua
--- pour éviter le double-handler. Ne PAS le redéfinir ici.
-
--- ─── Commande debug ───────────────────────────────────────────────────────────
+-- ─── Debug ────────────────────────────────────────────────────────────────────
 RegisterCommand('checkadmin', function(src)
     local role    = Admin.GetRole(src)
     local isAdmin = Admin.IsAdmin(src)

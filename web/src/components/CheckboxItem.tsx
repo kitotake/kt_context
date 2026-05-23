@@ -9,7 +9,6 @@ interface CheckboxItemProps {
   checked?: boolean
   disabled?: boolean
   description?: string
-  icon?: string
   onChange?: (checked: boolean) => void
 }
 
@@ -28,7 +27,8 @@ const CheckboxItem: FC<CheckboxItemProps> = ({
     const next = !checked
     setChecked(next)
     onChange?.(next)
-    await sendNui('menuAction', { id, checked: next, type: 'checkbox' })
+    // Envoie checkboxAction (intercepté par main.lua → kt_context:checkboxAction)
+    await sendNui('checkboxAction', { id, checked: next, type: 'checkbox' })
   }
 
   return (
@@ -37,12 +37,11 @@ const CheckboxItem: FC<CheckboxItemProps> = ({
       aria-checked={checked}
       aria-disabled={disabled}
       tabIndex={disabled ? -1 : 0}
-      className={`cm-item cm-checkbox ${disabled ? 'cm-item--disabled' : ''} ${checked ? 'cm-checkbox--checked' : ''}`}
+      className={`cm-item cm-checkbox ${disabled ? 'cm-item--disabled' : ''} ${checked ? 'cm-checkbox--checked' : ''}`.trim()}
       onClick={handleToggle}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleToggle() }}
     >
       <div className="cm-item__left">
-        {/* Box */}
         <span className="cm-checkbox__box">
           <motion.span
             className="cm-checkbox__tick"
@@ -53,7 +52,6 @@ const CheckboxItem: FC<CheckboxItemProps> = ({
             <Check size={10} strokeWidth={3} />
           </motion.span>
         </span>
-
         <div className="cm-item__text">
           <span className="cm-item__label">{label}</span>
           {description && <span className="cm-item__desc">{description}</span>}

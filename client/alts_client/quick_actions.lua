@@ -1,9 +1,5 @@
 -- =============================================
--- ACTIONS RAPIDES — v3.1 (fixed)
--- FIXES :
---   - Cooldown animations via HasCooldown / SetCooldown
---   - IsPlayerStaff() pour heal/armor (pas seulement admin)
---   - Verification vehicule proche pour lock
+-- ACTIONS RAPIDES — v3.2
 -- =============================================
 
 local QuickActions = {}
@@ -29,9 +25,9 @@ QuickActions.Vehicle = {
         if veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped then
             local on = GetIsVehicleEngineRunning(veh)
             SetVehicleEngineOn(veh, not on, false, true)
-            ShowNotification(on and 'Moteur eteint' or 'Moteur allume', 'info')
+            ShowNotification(on and 'Moteur éteint' or 'Moteur allumé', 'info')
         else
-            ShowNotification('Vous devez etre conducteur', 'warning')
+            ShowNotification('Vous devez être conducteur', 'warning')
         end
     end,
 
@@ -47,7 +43,7 @@ QuickActions.Vehicle = {
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
             for i = 0, 5 do SetVehicleDoorShut(veh, i, false) end
-            ShowNotification('Toutes les portes fermees', 'success')
+            ShowNotification('Toutes les portes fermées', 'success')
         end
     end,
 
@@ -56,7 +52,7 @@ QuickActions.Vehicle = {
         if veh ~= 0 then
             local lightsOn = GetVehicleLightsState(veh)
             SetVehicleLights(veh, lightsOn == 1 and 0 or 2)
-            ShowNotification(lightsOn == 1 and 'Lumieres eteintes' or 'Lumieres allumees', 'info')
+            ShowNotification(lightsOn == 1 and 'Lumières éteintes' or 'Lumières allumées', 'info')
         end
     end,
 }
@@ -66,14 +62,8 @@ QuickActions.Player = {
 
     HandsUp = function()
         local ped = PlayerPedId()
-        if IsPedInAnyVehicle(ped, false) then
-            ShowNotification(L('anim_vehicle'), 'warning')
-            return
-        end
-        if HasCooldown('anim_global') then
-            ShowNotification(L('cooldown_wait'), 'warning')
-            return
-        end
+        if IsPedInAnyVehicle(ped, false) then ShowNotification(L('anim_vehicle'), 'warning'); return end
+        if HasCooldown('anim_global') then ShowNotification(L('cooldown_wait'), 'warning'); return end
         SetCooldown('anim_global', Config.Limits.AnimCooldown or 2000)
         RequestAnimDict('random@mugging3')
         while not HasAnimDictLoaded('random@mugging3') do Wait(10) end
@@ -102,7 +92,7 @@ QuickActions.Player = {
 
     StopAnim = function()
         ClearPedTasks(PlayerPedId())
-        ShowNotification('Animation arretee', 'info')
+        ShowNotification('Animation arrêtée', 'info')
     end,
 
     Dance = function()
@@ -125,7 +115,7 @@ QuickActions.Admin = {
         end
         local ped = PlayerPedId()
         SetEntityHealth(ped, GetEntityMaxHealth(ped))
-        ShowNotification('Sante restauree', 'success')
+        ShowNotification('Santé restaurée', 'success')
         TriggerServerEvent('kt_context:logAdminAction', 'heal_self', nil, 'Self heal')
     end,
 
@@ -135,7 +125,7 @@ QuickActions.Admin = {
             return
         end
         SetPedArmour(PlayerPedId(), 100)
-        ShowNotification('Armure restauree', 'success')
+        ShowNotification('Armure restaurée', 'success')
         TriggerServerEvent('kt_context:logAdminAction', 'armor_self', nil, 'Self armor')
     end,
 
@@ -151,15 +141,14 @@ QuickActions.Admin = {
             SetVehicleUndriveable(veh, false)
             SetVehicleEngineOn(veh, true, false)
             SetVehicleDirtLevel(veh, 0.0)
-            ShowNotification('Vehicule repare', 'success')
+            ShowNotification('Véhicule réparé', 'success')
             TriggerServerEvent('kt_context:logAdminAction', 'repair_vehicle', nil, 'Repair')
         else
-            ShowNotification('Pas dans un vehicule', 'warning')
+            ShowNotification('Pas dans un véhicule', 'warning')
         end
     end,
 
     DeleteVehicle = function()
-        -- Suppression vehicule = admin uniquement (pas staff)
         if not IsPlayerAdmin() then
             ShowNotification(L('access_denied'), 'error')
             return
@@ -168,10 +157,10 @@ QuickActions.Admin = {
         if veh ~= 0 then
             SetEntityAsMissionEntity(veh, true, true)
             DeleteVehicle(veh)
-            ShowNotification('Vehicule supprime', 'success')
+            ShowNotification('Véhicule supprimé', 'success')
             TriggerServerEvent('kt_context:logAdminAction', 'delete_vehicle', nil, 'Delete')
         else
-            ShowNotification('Aucun vehicule proche', 'warning')
+            ShowNotification('Aucun véhicule proche', 'warning')
         end
     end,
 
@@ -192,10 +181,10 @@ QuickActions.Admin = {
             else
                 SetEntityCoords(ped, coords.x, coords.y, z + 1.0)
             end
-            ShowNotification('Teleporte', 'success')
+            ShowNotification('Téléporté', 'success')
             TriggerServerEvent('kt_context:logAdminAction', 'tp_waypoint', nil, 'TP waypoint')
         else
-            ShowNotification('Aucun waypoint place', 'warning')
+            ShowNotification('Aucun waypoint placé', 'warning')
         end
     end,
 
@@ -207,7 +196,7 @@ QuickActions.Admin = {
         local ped = PlayerPedId()
         local inv = GetPlayerInvincible(PlayerId())
         SetEntityInvincible(ped, not inv)
-        ShowNotification(inv and 'God Mode desactive' or 'God Mode active', 'info')
+        ShowNotification(inv and 'God Mode désactivé' or 'God Mode activé', 'info')
         TriggerServerEvent('kt_context:logAdminAction', 'god_mode', nil, 'Toggle')
     end,
 
@@ -219,11 +208,10 @@ QuickActions.Admin = {
         local ped = PlayerPedId()
         local vis = IsEntityVisible(ped)
         SetEntityVisible(ped, not vis, false)
-        ShowNotification(vis and 'Invisible active' or 'Visible', 'info')
+        ShowNotification(vis and 'Invisible activé' or 'Visible', 'info')
         TriggerServerEvent('kt_context:logAdminAction', 'invisible', nil, 'Toggle')
     end,
 
-    -- Seulement founder peut utiliser ces actions sensibles
     PlaceProp = function()
         if not IsPlayerAdmin() then
             ShowNotification(L('access_denied'), 'error')

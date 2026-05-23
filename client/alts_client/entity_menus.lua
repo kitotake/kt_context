@@ -1,16 +1,7 @@
 -- =============================================
--- MODULE : MENUS ENTITÉS — v3.1 (fixed)
---
--- FIXES :
---   • _pendingActions déclaré local (plus de global implicite)
---   • Cooldown NPC (Config.Limits.NpcCooldown)
---   • Vérification distance portée PNJ (Config.Limits.NpcMaxDistance)
---   • Cooldown animations (Config.Limits.AnimCooldown)
---   • Bloc animations en véhicule (Config.Limits.AnimBlockInVehicle)
---   • Confirmation avant suppression d'entité admin
+-- MODULE : MENUS ENTITÉS — v3.2
 -- =============================================
 
--- FIX: local — plus de pollution globale
 local _pendingActions = {}
 
 local function registerAction(id, fn)
@@ -22,7 +13,6 @@ local function clearPendingActions()
     _pendingActions = {}
 end
 
--- FIX: exposé proprement pour main.lua
 function ExecutePendingAction(id)
     local fn = _pendingActions[id]
     if fn then fn(); return true end
@@ -84,10 +74,8 @@ function BuildVehicleMenu(veh, locked, isAdmin)
 
     if plateText and #plateText > 0 then
         table.insert(items, {
-            id       = 'veh_plate',
-            label    = 'Plaque : ' .. plateText,
-            icon     = 'SquareDot',
-            disabled = true,
+            id = 'veh_plate', label = 'Plaque : ' .. plateText,
+            icon = 'SquareDot', disabled = true,
         })
     end
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FC } from 'react'
+import { useState, useCallback, type FC } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle, AlertTriangle, XCircle, Info, X } from 'lucide-react'
 import { useNuiEvent } from '../hooks/useNuiEvent'
@@ -51,15 +51,9 @@ const NotificationSystem: FC = () => {
 
   return (
     <div style={{
-      position:      'fixed',
-      bottom:        72,
-      right:         20,
-      zIndex:        9500,
-      display:       'flex',
-      flexDirection: 'column',
-      gap:           8,
-      pointerEvents: 'none',
-      maxWidth:      320,
+      position: 'fixed', bottom: 72, right: 20, zIndex: 9500,
+      display: 'flex', flexDirection: 'column', gap: 8,
+      pointerEvents: 'none', maxWidth: 320,
     }}>
       <AnimatePresence initial={false}>
         {notifs.map(n => {
@@ -71,36 +65,21 @@ const NotificationSystem: FC = () => {
               animate={{ opacity: 1, x: 0,  scale: 1,    transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
               exit={{    opacity: 0, x: 30, scale: 0.96,  transition: { duration: 0.15 } }}
               style={{
-                background:    c.bg,
-                border:        `1px solid ${c.border}`,
-                borderRadius:  6,
-                padding:       '8px 10px',
-                display:       'flex',
-                alignItems:    'flex-start',
-                gap:           8,
-                pointerEvents: 'all',
-                cursor:        'default',
-                fontFamily:    "'JetBrains Mono', monospace",
-                backdropFilter: 'blur(4px)',
+                background: c.bg, border: `1px solid ${c.border}`,
+                borderRadius: 6, padding: '8px 10px',
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                pointerEvents: 'all', cursor: 'default',
+                fontFamily: "'JetBrains Mono', monospace",
+              
               }}
             >
-              <span style={{ color: c.icon, flexShrink: 0, marginTop: 1 }}>
-                {ICONS[n.type]}
-              </span>
-              <span style={{ color: c.text, fontSize: 12, lineHeight: 1.4, flex: 1 }}>
-                {n.message}
-              </span>
+              <span style={{ color: c.icon, flexShrink: 0, marginTop: 1 }}>{ICONS[n.type]}</span>
+              <span style={{ color: c.text, fontSize: 12, lineHeight: 1.4, flex: 1 }}>{n.message}</span>
               <button
                 onClick={() => remove(n.id)}
                 style={{
-                  background: 'none',
-                  border:     'none',
-                  cursor:     'pointer',
-                  color:      c.icon,
-                  padding:    0,
-                  flexShrink: 0,
-                  opacity:    0.6,
-                  lineHeight: 0,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: c.icon, padding: 0, flexShrink: 0, opacity: 0.6, lineHeight: 0,
                 }}
               >
                 <X size={12} />

@@ -1,12 +1,5 @@
 -- =============================================
--- MENU CONTEXTUEL - PRINCIPAL - v3.2 (fixed)
--- FIXES :
---   - Cooldown animations (HasCooldown / SetCooldown)
---   - Limite deplacement 3m depuis ouverture du menu
---   - prop_gizmo ajouté dans actionHandlers (dispatch vers kt_context:action)
---   - veh_lights + door_all_* corriges
---   - SetNuiFocus géré proprement selon cursorActive
---   - win_up / win_down : garde veh depuis le siège OU proche
+-- MENU CONTEXTUEL - PRINCIPAL - v3.2
 -- =============================================
 
 local isMenuOpen      = false
@@ -15,9 +8,7 @@ local _menuOpenCoords = nil
 
 -- ─── Ouverture ──────────────────────────────────────────────────────────────
 function OpenContextMenu(x, y, items, title, options)
-    if isMenuOpen then
-        CloseContextMenu()
-    end
+    if isMenuOpen then CloseContextMenu() end
 
     if not items or #items == 0 then
         print('[KT Context] OpenContextMenu - aucun item fourni')
@@ -32,8 +23,8 @@ function OpenContextMenu(x, y, items, title, options)
         return
     end
 
-    isMenuOpen        = true
-    _menuOpenCoords   = GetEntityCoords(PlayerPedId())
+    isMenuOpen      = true
+    _menuOpenCoords = GetEntityCoords(PlayerPedId())
 
     if not IsCursorActive() then
         SetNuiFocus(true, true)
@@ -42,10 +33,10 @@ function OpenContextMenu(x, y, items, title, options)
     SendNUIMessage({
         type = 'openContextMenu',
         data = {
-            x       = x       or 500,
-            y       = y       or 300,
+            x       = x     or 500,
+            y       = y     or 300,
             items   = items,
-            title   = title   or 'Menu',
+            title   = title or 'Menu',
             theme   = options.theme   or 'dark',
             animate = options.animate ~= false,
         }
@@ -68,7 +59,6 @@ function CloseContextMenu()
     end
 end
 
--- ─── Statut ─────────────────────────────────────────────────────────────────
 function IsMenuOpen()
     return isMenuOpen
 end
@@ -85,7 +75,7 @@ local function _checkMenuDistance()
     return true
 end
 
--- ─── Helpers animations ────────────────────────────────────────────────────────
+-- ─── Helpers animations ──────────────────────────────────────────────────────
 local function _checkAnimCooldown()
     if HasCooldown('anim_global') then
         ShowNotification(L('cooldown_wait'), 'warning')
@@ -113,7 +103,7 @@ local function _playAnimHandler(dict, clip, flags)
     TaskPlayAnim(ped, dict, clip, 8.0, -8.0, -1, flags or 0, 0, false, false, false)
 end
 
--- ─── Sécurité resource stop / spawn ───────────────────────────────────────────
+-- ─── Sécurité resource stop ───────────────────────────────────────────────────
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName == GetCurrentResourceName() and isMenuOpen then
         isMenuOpen      = false
@@ -135,10 +125,7 @@ AddEventHandler('playerSpawned', function()
     end
 end)
 
--- ─── Gestionnaires d'actions statiques ────────────────────────────────────────
--- Les actions prop (rot_*, prop_freeze, prop_delete, prop_gizmo, auto_*)
--- sont gérées par rotation/client.lua via AddEventHandler('kt_context:action').
--- Ce fichier-ci dispatch vers cet event pour les IDs non reconnus ici (fallback).
+-- ─── Handlers d'actions statiques ────────────────────────────────────────────
 local actionHandlers = {
 
     inventory = function()
@@ -149,7 +136,7 @@ local actionHandlers = {
 
     phone = function() TriggerEvent('kt_phone:open') end,
 
-    -- ── Animations ────────────────────────────────────────────────────────────
+    -- ── Animations ───────────────────────────────────────────────────────────
     wave    = function() _playAnimHandler('gestures@m@standing@casual', 'gesture_hello', 0) end,
     handsup = function() _playAnimHandler('random@mugging3', 'handsup_standing_base', 50) end,
 
@@ -174,7 +161,7 @@ local actionHandlers = {
     stopanim = function() ClearPedTasks(PlayerPedId()) end,
     stop     = function() ClearPedTasks(PlayerPedId()) end,
 
-    -- ── Véhicule ──────────────────────────────────────────────────────────────
+    -- ── Véhicule ─────────────────────────────────────────────────────────────
     veh_lock = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
@@ -204,15 +191,14 @@ local actionHandlers = {
         end
     end,
 
-    door_fl    = function() ToggleVehicleDoor(0) end,
-    door_fr    = function() ToggleVehicleDoor(1) end,
-    door_rl    = function() ToggleVehicleDoor(2) end,
-    door_rr    = function() ToggleVehicleDoor(3) end,
-    door_hood  = function() ToggleVehicleDoor(4) end,
-    door_trunk = function() ToggleVehicleDoor(5) end,
+    door_fl        = function() ToggleVehicleDoor(0) end,
+    door_fr        = function() ToggleVehicleDoor(1) end,
+    door_rl        = function() ToggleVehicleDoor(2) end,
+    door_rr        = function() ToggleVehicleDoor(3) end,
+    door_hood      = function() ToggleVehicleDoor(4) end,
+    door_trunk     = function() ToggleVehicleDoor(5) end,
 
     door_all_open = function()
-        -- FIX: true = inclut les véhicules à proximité (pas seulement dans lequel on est)
         local veh = GetVehiclePedIsIn(PlayerPedId(), true)
         if veh ~= 0 then
             for i = 0, 5 do SetVehicleDoorOpen(veh, i, false, false) end
@@ -228,7 +214,6 @@ local actionHandlers = {
         end
     end,
 
-    -- FIX: win_up / win_down — veh false = seulement dans lequel on est assis
     win_up = function()
         local veh = GetVehiclePedIsIn(PlayerPedId(), false)
         if veh ~= 0 then
@@ -247,7 +232,7 @@ local actionHandlers = {
         end
     end,
 
-    -- ── Admin — self ──────────────────────────────────────────────────────────
+    -- ── Admin ────────────────────────────────────────────────────────────────
     adm_coords_self = function()
         ShowNotification(('📍 %s'):format(FormatCoords(GetEntityCoords(PlayerPedId()))), 'info')
     end,
@@ -343,7 +328,7 @@ local actionHandlers = {
         end
     end,
 
-    -- ── Props (raccourcis menu général) ───────────────────────────────────────
+    -- ── Props ────────────────────────────────────────────────────────────────
     placeprop = function()
         if PropManager then PropManager:Place(Config.Rotation.DefaultPropName) end
     end,
@@ -356,8 +341,9 @@ local actionHandlers = {
         end
     end,
 
-    -- prop_gizmo est dispatché via TriggerEvent('kt_context:action') ci-dessous
-    -- (géré par rotation/client.lua → PropManager:OpenGizmo())
+    -- ── Overlay checkboxes ────────────────────────────────────────────────────
+    -- Ces actions sont dispatché vers overlay.lua via kt_context:action
+    -- (voir client/alts_client/overlay.lua)
 }
 
 -- ─── NUI Callbacks ───────────────────────────────────────────────────────────
@@ -367,19 +353,18 @@ RegisterNUICallback('menuAction', function(data, cb)
         return
     end
 
-    -- Check distance
     if not _checkMenuDistance() then
         cb('ok')
         return
     end
 
-    -- Priorité 1 : actions dynamiques enregistrées (Build*Menu)
+    -- Priorité 1 : actions dynamiques (Build*Menu)
     if ExecutePendingAction and ExecutePendingAction(data.id) then
         cb('ok')
         return
     end
 
-    -- Priorité 2 : handlers statiques de ce fichier
+    -- Priorité 2 : handlers statiques
     local handler = actionHandlers[data.id]
     if handler then
         handler()
@@ -387,8 +372,19 @@ RegisterNUICallback('menuAction', function(data, cb)
         return
     end
 
-    -- Priorité 3 : fallback → event générique (capté par rotation/client.lua et autres)
+    -- Priorité 3 : fallback event générique
     TriggerEvent('kt_context:action', data.id, data)
+    cb('ok')
+end)
+
+-- Callback checkbox : envoyé quand l'utilisateur coche/décoche
+RegisterNUICallback('checkboxAction', function(data, cb)
+    if type(data) ~= 'table' or not data.id then
+        cb('error')
+        return
+    end
+    -- Dispatch vers l'event overlay ou autre handler
+    TriggerEvent('kt_context:checkboxAction', data.id, data.checked, data)
     cb('ok')
 end)
 
@@ -418,7 +414,7 @@ Citizen.CreateThread(function()
     end
 end)
 
--- ─── Fermeture auto si joueur trop loin (3m) ──────────────────────────────────
+-- ─── Fermeture auto si joueur trop loin ───────────────────────────────────────
 Citizen.CreateThread(function()
     while true do
         if isMenuOpen and _menuOpenCoords then

@@ -2,8 +2,8 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'Kitotake'
-description 'Systeme de menu contextuel NUI - React + TypeScript + SCSS (v3.1)'
-version '3.1.0'
+description 'Systeme de menu contextuel NUI - React + TypeScript + SCSS (v3.2)'
+version '3.2.0'
 
 ui_page 'web/dist/index.html'
 
@@ -27,15 +27,15 @@ client_scripts {
     'client/alts_client/radial_menu.lua',
     'client/alts_client/debug_target.lua',
     'client/alts_client/entity_menus.lua',
-    'client/alts_client/cursor.lua',
+    'client/alts_client/overlay.lua',       -- NOUVEAU : overlay + checkboxes
+    'client/alts_client/cursor.lua',        -- après overlay (BuildOverlayMenu doit exister)
 
     -- ROTATION SYSTEM
-    -- dataview doit être chargé AVANT gizmo et client
     'client/alts_client/rotation/dataview.lua',
     'client/alts_client/rotation/client.lua',
     'client/alts_client/rotation/gizmo.lua',
 
-    -- Exemples (glob unique, pas de doublon)
+    -- Exemples
     'client/examples/*.lua',
 }
 
@@ -65,4 +65,6 @@ exports {
     'DeleteProp',
     'OpenPropMenu',
     'useGizmo',
+    'BuildOverlayMenu',
+    'IsOverlayActive',
 }
