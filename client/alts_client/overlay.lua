@@ -24,6 +24,14 @@ local OverlayState = {
 -- Blips créés dynamiquement (joueurs)
 local _playerBlips = {}
 
+-- ─── Blips joueurs — déclaré AVANT AddEventHandler qui l'utilise ─────────────
+local function _clearPlayerBlips()
+    for _, blip in pairs(_playerBlips) do
+        if DoesBlipExist(blip) then RemoveBlip(blip) end
+    end
+    _playerBlips = {}
+end
+
 -- ─── Écoute des checkboxes depuis le menu ────────────────────────────────────
 AddEventHandler('kt_context:checkboxAction', function(id, checked, data)
     if     id == 'overlay_player_names'  then OverlayState.playerNames  = checked
@@ -90,13 +98,6 @@ function IsOverlayActive(key)
 end
 
 -- ─── Blips joueurs ───────────────────────────────────────────────────────────
-local function _clearPlayerBlips()
-    for _, blip in pairs(_playerBlips) do
-        if DoesBlipExist(blip) then RemoveBlip(blip) end
-    end
-    _playerBlips = {}
-end
-
 local function _updatePlayerBlips()
     local myCoords = GetEntityCoords(PlayerPedId())
     local maxDist  = Config.Overlay.PlayerBlips.MaxDistance
@@ -240,7 +241,7 @@ local function _drawVehicleInfo()
                     if cfg.ShowPlate then
                         local plate = GetVehicleNumberPlateText(veh)
                         if plate and #plate > 0 then
-                            table.insert(lines, 'plate : ' .. plate)
+                            table.insert(lines, '🚘 ' .. plate)
                         end
                     end
                     if cfg.ShowSpeed then

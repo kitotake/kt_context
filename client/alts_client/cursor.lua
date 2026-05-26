@@ -221,12 +221,14 @@ function OpenGeneralContextMenu(x, y)
     })
 
     -- ── Overlays (checkboxes) ──────────────────────────────────────────────
-    table.insert(items, {
-        id      = 'overlays',
-        label   = 'Affichages',
-        icon    = 'Eye',
-        submenu = BuildOverlayMenu(),
-    })
+    if BuildOverlayMenu then
+        table.insert(items, {
+            id      = 'overlays',
+            label   = 'Affichages',
+            icon    = 'Eye',
+            submenu = BuildOverlayMenu(),
+        })
+    end
 
     table.insert(items, { id = 'inventory', label = 'Inventaire', icon = 'Backpack' })
 

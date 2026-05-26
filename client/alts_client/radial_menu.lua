@@ -66,6 +66,10 @@ local RadialMenus = {
         items = {
             { id = 'ov_open', label = 'Gérer les overlays', icon = '⚙️',
               action = function()
+                if not BuildOverlayMenu then
+                    ShowNotification('Overlay non disponible', 'warning')
+                    return
+                end
                 local sw, sh = GetActiveScreenResolution()
                 OpenContextMenu(sw/2, sh/2, BuildOverlayMenu(), '👁️ Affichages')
               end },

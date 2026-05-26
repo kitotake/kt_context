@@ -15,10 +15,5 @@
     "paths": { "@/*": ["./src/*"] },
     "types": ["vite/client"]
   },
-  "include": ["src"],
-  "vite": {
-    "ssr": {
-      "external": ["*.scss"]
-    }
-  }
+  "include": ["src"]
 }

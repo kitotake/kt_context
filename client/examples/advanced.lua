@@ -34,8 +34,8 @@ function OpenPlayerInteractionMenu(targetId, targetName)
             submenu = {
                 { id='adm_tp_to',   label='Se TP vers lui',    icon='ArrowRight'                          },
                 { id='adm_tp_here', label='TP lui vers moi',   icon='ArrowLeft'                           },
-                { id='adm_kick',    label='Expulser',          icon='UserX',    variant='danger' },
-                { id='adm_heal_t',  label='Soigner le joueur', icon='Heart',    variant='success' },
+                { id='adm_kick',    label='Expulser',          icon='UserX',    variant='danger'  as const },
+                { id='adm_heal_t',  label='Soigner le joueur', icon='Heart',    variant='success' as const },
             }
         })
     end

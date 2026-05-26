@@ -35,6 +35,9 @@ client_scripts {
     'client/alts_client/rotation/client.lua',
     'client/alts_client/rotation/gizmo.lua',
 
+    -- Bridge union (EN DERNIER côté client)
+    'bridge/client/union_compat.lua',
+
     -- Exemples
     'client/examples/*.lua',
 }
@@ -45,6 +48,9 @@ server_scripts {
     'server/admin.lua',
     'server/alts_server/action_logs.lua',
     'server/alts_server/rotation_server.lua',
+
+    -- Bridge union (EN DERNIER côté serveur)
+    'bridge/server/union_compat.lua',
 }
 
 files {
@@ -67,4 +73,7 @@ exports {
     'useGizmo',
     'BuildOverlayMenu',
     'IsOverlayActive',
+    'KtGetPlayerDisplayName',
+    'KtGetLocalJob',
+    'KtGetUniqueId',
 }

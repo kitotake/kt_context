@@ -1,21 +1,19 @@
 -- =============================================
--- CONFIG GLOBAL — v3.2
+-- CONFIG KT_CONTEXT — v3.2
+-- COMPAT UNION : utilise KtContextConfig
+-- pour ne pas écraser Config d'union.
 -- =============================================
-Config = {}
+KtContextConfig = {}
 
-Config.Locale = 'fr'
+KtContextConfig.Locale = 'fr'
+KtContextConfig.CursorKey     = 19
+KtContextConfig.CursorKeyName = 'LALT'
+KtContextConfig.InteractionDistance = 5.0
+KtContextConfig.MaxSubmenuDepth     = 6
+KtContextConfig.AdminGroups = { 'admin', 'moderator', 'founder' }
+KtContextConfig.StaffGroups = { 'admin', 'moderator', 'founder', 'staff' }
 
-Config.CursorKey     = 19
-Config.CursorKeyName = 'LALT'
-
-Config.InteractionDistance = 5.0
-Config.MaxSubmenuDepth     = 6
-
-Config.AdminGroups = { 'admin', 'moderator', 'founder' }
-Config.StaffGroups = { 'admin', 'moderator', 'founder', 'staff' }
-
--- ─── Limites d'utilisation ────────────────────────────────────────────────────
-Config.Limits = {
+KtContextConfig.Limits = {
     NpcCooldown             = 5000,
     NpcMaxDistance          = 3.0,
     AnimCooldown            = 2000,
@@ -30,8 +28,7 @@ Config.Limits = {
     MaxInteractMoveDistance = 3.0,
 }
 
--- ─── Rotation ─────────────────────────────────────────────────────────────────
-Config.Rotation = {
+KtContextConfig.Rotation = {
     DefaultPropName = 'prop_mp_barrier_01a',
     DefaultPosition = vector3(0.0, 0.0, 0.0),
     DefaultRotation = vector3(0.0, 0.0, 0.0),
@@ -40,38 +37,29 @@ Config.Rotation = {
     AllowedProps    = {},
 }
 
--- ─── Overlay joueurs (nouveau) ────────────────────────────────────────────────
--- Système d'overlay qui affiche les noms/infos des joueurs proches sur la carte
--- et en 3D au-dessus de leur tête. Activable via le menu contextuel (checkbox).
-Config.Overlay = {
-    -- Overlay noms joueurs (texte flottant au-dessus de la tête)
+KtContextConfig.Overlay = {
     PlayerNames = {
-        Enabled         = false,   -- désactivé par défaut, activé via menu
-        MaxDistance     = 30.0,    -- distance max d'affichage (mètres)
-        ShowId          = true,    -- afficher l'ID serveur
-        ShowDistance    = false,   -- afficher la distance
-        ShowHealth      = false,   -- afficher la santé
-        TextScale       = 0.35,
-        FriendlyColor   = { r=255, g=255, b=255, a=220 },
-        AdminColor      = { r=255, g=200, b=80,  a=220 },
+        Enabled       = false,
+        MaxDistance   = 30.0,
+        ShowId        = true,
+        ShowDistance  = false,
+        ShowHealth    = false,
+        TextScale     = 0.35,
+        -- COMPAT UNION : affiche firstname + lastname depuis statebag
+        UseUnionNames = true,
     },
-    -- Blips joueurs sur la carte
     PlayerBlips = {
         Enabled     = false,
         MaxDistance = 200.0,
-        ShowFriends = true,
-        ShowAdmins  = true,
         Sprite      = 1,
-        Color       = 0,   -- couleur blip GTA (0=blanc)
+        Color       = 0,
         Scale       = 0.7,
     },
-    -- Cercle de distance autour du joueur local
     RangeCircle = {
         Enabled = false,
         Radius  = 50.0,
         Color   = { r=59, g=130, b=246, a=60 },
     },
-    -- Véhicules proches (overlay infos)
     VehicleInfo = {
         Enabled     = false,
         MaxDistance = 15.0,
@@ -81,8 +69,19 @@ Config.Overlay = {
     },
 }
 
--- ─── Locales ──────────────────────────────────────────────────────────────────
-Config.Locales = {
+-- ── Intégration Union Framework ───────────────────────────────────────────
+KtContextConfig.UnionIntegration = {
+    Enabled          = true,
+    ResourceName     = 'union',
+    -- Utilise PermissionSystem d'union côté serveur
+    UseUnionPerms    = true,
+    -- Enrichit l'overlay avec firstname/lastname/job depuis statebags
+    UseUnionStatebag = true,
+    -- false = garde le système NUI kt_context pour les notifications
+    UseUnionNotify   = false,
+}
+
+KtContextConfig.Locales = {
     fr = {
         press_to_open         = 'Appuyez sur ~INPUT_CONTEXT~ pour ouvrir',
         vehicle_locked        = '🔒 Véhicule verrouillé',
@@ -141,7 +140,18 @@ Config.Locales = {
     }
 }
 
-function L(key)
-    local locale = Config.Locales[Config.Locale] or Config.Locales['fr']
+-- ── Alias pour compatibilité standalone (sans union) ─────────────────────
+-- Si union est chargé en premier, Config existe déjà (Config.spawn défini).
+-- On ne l'écrase PAS. Tous les modules kt_context utilisent KtContextConfig.
+if not Config or not Config.spawn then
+    Config = KtContextConfig
+end
+
+-- L() locale : utilise _t() d'union si disponible, sinon KtContextConfig
+function KtL(key)
+    local locale = KtContextConfig.Locales[KtContextConfig.Locale]
+        or KtContextConfig.Locales['fr']
     return locale[key] or key
 end
+
+if not L then L = KtL end

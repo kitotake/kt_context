@@ -6,9 +6,9 @@ export const isEnvBrowser = (): boolean =>
 export const sendNui = async (event: string, data: unknown = {}): Promise<void> => {
   try {
     await fetch(`https://${RESOURCE_NAME}/${event}`, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body:    JSON.stringify(data),
     })
   } catch {
     if (isEnvBrowser()) {

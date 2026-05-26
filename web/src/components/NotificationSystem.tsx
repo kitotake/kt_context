@@ -70,7 +70,7 @@ const NotificationSystem: FC = () => {
                 display: 'flex', alignItems: 'flex-start', gap: 8,
                 pointerEvents: 'all', cursor: 'default',
                 fontFamily: "'JetBrains Mono', monospace",
-              
+                backdropFilter: 'blur(4px)',
               }}
             >
               <span style={{ color: c.icon, flexShrink: 0, marginTop: 1 }}>{ICONS[n.type]}</span>

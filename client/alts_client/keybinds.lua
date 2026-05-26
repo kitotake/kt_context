@@ -70,6 +70,10 @@ Citizen.CreateThread(function()
 
     -- Raccourci menu overlay (O)
     KeyBinds:Register('kt_overlay_menu', 'O', 57, function()
+        if not BuildOverlayMenu then
+            ShowNotification('Overlay non disponible', 'warning')
+            return
+        end
         local sw, sh = GetActiveScreenResolution()
         OpenContextMenu(sw/2, sh/2, BuildOverlayMenu(), '👁️ Affichages')
     end, 'Menu Overlays')
