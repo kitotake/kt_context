@@ -1,6 +1,6 @@
 -- =============================================
 -- GIZMO ROTATION — v3.2
--- Suppression dépendances ox_lib → FiveM vanilla
+-- Suppression dépendances kt_lib → FiveM vanilla
 -- =============================================
 
 local dataview       = dataView

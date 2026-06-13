@@ -162,15 +162,15 @@ RegisterNUICallback('radialMenuAction', function(data, cb)
     cb('ok')
 end)
 
-RegisterCommand('+radialmenu', function()
-    if not RadialMenu.isOpen then RadialMenu:Open('main') end
-end, false)
+-- RegisterCommand('+radialmenu', function()
+--     if not RadialMenu.isOpen then RadialMenu:Open('main') end
+-- end, false)
 
-RegisterCommand('-radialmenu', function()
-    if RadialMenu.isOpen then RadialMenu:Close() end
-end, false)
+-- RegisterCommand('-radialmenu', function()
+--     if RadialMenu.isOpen then RadialMenu:Close() end
+-- end, false)
 
-RegisterKeyMapping('+radialmenu', 'Ouvrir le menu radial', 'keyboard', 'Z')
+-- RegisterKeyMapping('+radialmenu', 'Ouvrir le menu radial', 'keyboard', 'Z')
 
 exports('OpenRadialMenu',  function(menuId) RadialMenu:Open(menuId) end)
 exports('CloseRadialMenu', function() RadialMenu:Close() end)

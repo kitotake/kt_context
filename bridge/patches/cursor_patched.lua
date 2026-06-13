@@ -311,6 +311,7 @@ function OpenGeneralContextMenu(x, y)
                 { id = 'adm_heal_self',   label = 'Heal',            icon = 'Heart'      },
                 { id = 'adm_delete',      label = 'Delete véhicule', icon = 'Trash2'     },
                 { id = 'adm_invisible',   label = 'Invisible',       icon = 'EyeOff'     },
+                { id = 'adm_impact',   label = 'impact',       icon = 'Gun'     },
             },
         })
     end
