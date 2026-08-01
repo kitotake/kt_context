@@ -140,19 +140,11 @@ local actionHandlers = {
     wave    = function() _playAnimHandler('gestures@m@standing@casual', 'gesture_hello', 0) end,
     handsup = function() _playAnimHandler('random@mugging3', 'handsup_standing_base', 50) end,
 
-    crossarms = function()
-    _playAnimHandler(
-        'amb@world_human_hang_out_street@female_arms_crossed@idle_a',
-        'idle_b',
-        49
-    )
-end,
-
     sit = function()
         if not _checkAnimCooldown() then return end
         SetCooldown('anim_global', Config.Limits and Config.Limits.AnimCooldown or 2000)
         TaskStartScenarioInPlace(PlayerPedId(), 'WORLD_HUMAN_PICNIC', 0, true)
-    end,   
+    end,
 
     lay = function()
         if not _checkAnimCooldown() then return end

@@ -100,7 +100,8 @@ if USE_PERMS then
                     end
                     -- Notifie le client kt_context
                     TriggerClientEvent('permissions:client:set', src, group)
-                    
+                    print(('[KT Context] Permissions sync depuis union: %s → %s'):format(
+                        GetPlayerName(src) or '?', group))
                     return group
                 end
                 -- Fallback : méthode originale

@@ -1,13 +1,9 @@
--- =============================================
--- fxmanifest.lua — kt_context v3.2 + bridge kt_interact
--- REMPLACE le fxmanifest.lua original de kt_context
--- =============================================
 fx_version 'cerulean'
 game 'gta5'
 
 author 'Kitotake'
-description 'Systeme de menu contextuel NUI - React + TypeScript + SCSS (v3.2) + Bridge kt_interact'
-version '3.2.1'
+description 'Systeme de menu contextuel NUI - React + TypeScript + SCSS (v3.2)'
+version '3.2.0'
 
 ui_page 'web/dist/index.html'
 
@@ -31,13 +27,8 @@ client_scripts {
     'client/alts_client/radial_menu.lua',
     'client/alts_client/debug_target.lua',
     'client/alts_client/entity_menus.lua',
-    'client/alts_client/overlay.lua',
-
-    -- Bridge kt_interact (AVANT cursor.lua pour que les fonctions soient dispo)
-    'bridge/client/kt_interact_compat.lua',
-
-    -- cursor.lua patché (remplace l'original — contient l'injection kt_interact)
-    'bridge/patches/cursor_patched.lua',
+    'client/alts_client/overlay.lua',       -- NOUVEAU : overlay + checkboxes
+    'client/alts_client/cursor.lua',        -- après overlay (BuildOverlayMenu doit exister)
 
     -- ROTATION SYSTEM
     'client/alts_client/rotation/dataview.lua',
@@ -57,9 +48,6 @@ server_scripts {
     'server/admin.lua',
     'server/alts_server/action_logs.lua',
     'server/alts_server/rotation_server.lua',
-
-    -- Bridge kt_interact serveur
-    'bridge/server/kt_interact_compat.lua',
 
     -- Bridge union (EN DERNIER côté serveur)
     'bridge/server/union_compat.lua',
@@ -88,9 +76,4 @@ exports {
     'KtGetPlayerDisplayName',
     'KtGetLocalJob',
     'KtGetUniqueId',
-    -- Nouveaux exports bridge kt_interact
-    'KtInteract_GetMenuItems',
-    'KtInteract_GetGeneralMenuItems',
-    'KtInteract_Trigger',
-    'KtInteract_GetCacheCount',
 }

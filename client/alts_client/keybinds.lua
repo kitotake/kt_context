@@ -53,10 +53,30 @@ Citizen.CreateThread(function()
             { id = 'sit',      label = "S'asseoir",         icon = 'Armchair'   },
             { id = 'lay',      label = "S'allonger",        icon = 'BedDouble'  },
             { id = 'dance',    label = 'Danser',            icon = 'Music'      },
-            { id = 'crossarms', label = ' bras croisés',     icon = 'ArmsCrossed' },
             { id = 'stopanim', label = 'Arrêter animation', icon = 'StopCircle' },
         }, '😊 Émotes')
-    end, 'Menu Émotes')    
+    end, 'Menu Émotes')
+
+    KeyBinds:Register('kt_quick_lock', 'L', 182, function()
+        local veh = GetVehiclePedIsIn(PlayerPedId(), true)
+        if veh ~= 0 then
+            local locked = GetVehicleDoorLockStatus(veh)
+            SetVehicleDoorsLocked(veh, locked == 1 and 2 or 1)
+            ShowNotification(locked == 1 and L('vehicle_locked') or L('vehicle_unlocked'), 'info')
+        else
+            ShowNotification(L('no_vehicle'), 'warning')
+        end
+    end, 'Verrouiller véhicule')
+
+    -- Raccourci menu overlay (O)
+    KeyBinds:Register('kt_overlay_menu', 'O', 57, function()
+        if not BuildOverlayMenu then
+            ShowNotification('Overlay non disponible', 'warning')
+            return
+        end
+        local sw, sh = GetActiveScreenResolution()
+        OpenContextMenu(sw/2, sh/2, BuildOverlayMenu(), '👁️ Affichages')
+    end, 'Menu Overlays')
 
     print('[KT Context] Keybinds enregistrés')
 end)
